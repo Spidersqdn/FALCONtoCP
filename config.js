@@ -1,0 +1,5 @@
+// แก้บรรทัดนี้ให้เป็น URL ของแผนที่บน Cloudflare R2 (Public URL ของ bucket + /map.pmtiles)
+window.CONFIG = {
+  MAP_URL: "https://pub-xxxx.r2.dev/map.pmtiles",
+  DEFAULT_KT: 90
+};
