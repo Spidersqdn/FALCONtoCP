@@ -110,7 +110,10 @@ body{height:100dvh}
  body.full #side{height:85dvh}
  #tog{top:auto;bottom:48dvh;left:50%;transform:translateX(-50%);width:96px;height:26px;border:1px solid #000;border-bottom:0;border-radius:10px 10px 0 0;box-shadow:0 -2px 4px #0006;font-size:13px}
  body.full #tog{bottom:85dvh}body.hide #tog{left:50%;bottom:0}
- #edp,#edp.lft{top:8px;left:8px;right:8px;width:auto;max-height:calc(52dvh - 40px)}
+ /* leg/label editor: sits over the bottom menu (sheet) so the map stays visible */
+ #edp,#edp.lft{top:auto;bottom:0;left:0;right:0;width:auto;height:48dvh;max-height:none;border-radius:12px 12px 0 0;border-top:2px solid var(--au);box-shadow:0 -4px 14px #0007;padding:8px 14px calc(12px + env(safe-area-inset-bottom));z-index:1100}
+ body.editing #tog{display:none}
+ #edp .edh{float:right;margin:0 -6px 0 8px}#edp .edh button:first-child{display:none}
  #hdr{padding:10px 14px 8px}#hdr b{font-size:16px}
  #stats{grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 10px}#stats div{font-size:11px}#stats b{font-size:18px}#stats #kt{width:100%;font-size:18px}
  fieldset{padding:10px 12px}.hint{padding:0 12px 12px}
@@ -323,8 +326,9 @@ function tipSvg(h,c,tail,txt){const w=Math.round(h*0.75),m=h/2,x0=1.5,x1=w-1.5;
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 // ---- editable leg box / label (popup forms) ----
 // edit form lives in a floating panel at the map edge, so it never covers the label/box being adjusted
-function popForm(ll,html){const e=$('edp');e.innerHTML=`<div class="pop"><div class="edh"><button title="ย้ายไปอีกด้าน" onclick="$('edp').classList.toggle('lft')">⇆</button><button title="ปิด" onclick="closeEd()">✕</button></div>${html}</div>`;e.style.display='block'}
-function closeEd(){const e=$('edp');if(e){e.style.display='none';e.innerHTML=''}}
+let edPrev=null; // phone portrait: remember sheet state, show editor in place of the menu
+function popForm(ll,html){if(isPh()&&edPrev===null){const b=document.body.classList;edPrev=b.contains('full')?'full':b.contains('hide')?'hide':'';b.remove('full','hide');b.add('editing');togTxt();setTimeout(()=>map.invalidateSize(),50)}const e=$('edp');e.innerHTML=`<div class="pop"><div class="edh"><button title="ย้ายไปอีกด้าน" onclick="$('edp').classList.toggle('lft')">⇆</button><button title="ปิด" onclick="closeEd()">✕</button></div>${html}</div>`;e.style.display='block'}
+function closeEd(){const e=$('edp');if(e){e.style.display='none';e.innerHTML=''}if(edPrev!==null){document.body.classList.remove('editing');if(edPrev&&isPh())document.body.classList.add(edPrev);edPrev=null;togTxt();setTimeout(()=>map.invalidateSize(),50)}}
 function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
   popForm(ll,`<b>Leg ${i+1}: ${esc(a.type)} → ${esc(S.pts[i+1].type)}</b><br><small>เว้นว่าง = คำนวณอัตโนมัติ</small>
    <label>HDG/CRS</label><input id="eC" value="${esc(o.crs)}" placeholder="${pad3(l.tc)}">
