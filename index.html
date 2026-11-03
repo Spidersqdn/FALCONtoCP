@@ -22,6 +22,8 @@ body.hide #side{display:none}
 .b3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.b3 button{margin:0;padding:9px 4px;font-weight:bold}
 @media print{#tog{display:none}}
 #hdr{padding:14px 14px 10px;border-bottom:1px solid var(--ln)}#hdr b{font-size:18px}#hdr small{display:block;margin-top:4px;color:var(--cy);font:11px Consolas,monospace;letter-spacing:.5px}
+#prof{padding:10px 14px 12px;border-bottom:1px solid var(--ln)}#prof .ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}#prof .ph b{font-size:14px}#prof .ph span{font:11px Consolas,monospace;color:var(--mu)}
+#prG svg{display:block;width:100%;height:auto;background:#2b2e33;border:1px solid var(--ln);border-radius:8px}#prG .e{color:var(--mu);font-size:11px;padding:8px 0}
 #stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid var(--ln)}
 #stats div{color:var(--mu);font-size:12px}#stats b{display:block;color:var(--tx);font:15px Consolas,monospace;margin-top:2px}
 fieldset{margin:0;border:0;border-bottom:1px solid var(--ln);padding:12px 14px}legend{float:left;width:100%;font-weight:bold;font-size:13px;margin-bottom:8px;color:var(--tx)}
@@ -87,6 +89,7 @@ fieldset>*:not(legend){clear:both}
 <div id="side">
  <div id="hdr"><b>FALCONtoCP</b><small>ROUTE PLANNER · PZ / CP / LZ</small></div>
  <div id="stats"><div>Distance<b id="stD">-</b></div><div>Flight Time<b id="stT">-</b></div><div>Waypoints<b id="stN">-</b></div><div>Highest ALT<b id="stA">-</b></div></div>
+ <div id="prof"><div class="ph"><b>Elevation Profile</b><span id="prM"></span></div><div id="prG"></div></div>
  <fieldset><legend>MAP</legend>
   <select id="mapSel" style="width:100%" onchange="pickMap(this.value)"></select>
   <label><input type="checkbox" id="offl" checked onchange="save()"> เก็บแผนที่ที่เปิดดูไว้ใช้ offline</label>
@@ -214,12 +217,26 @@ function autoAlt(a,b){const f=b&&ELV[ekey(a,b)];return f==null?null:String(Math.
 function legAlt(a,b,o){return has(o.alt)?o.alt:autoAlt(a,b)??a.alt}
 function demTile(z,x,y){const k=z+'/'+x+'/'+y;return DEM[k]||(DEM[k]=fetch('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/'+k+'.png').then(r=>{if(!r.ok)throw 0;return r.blob()}).then(createImageBitmap)
   .then(bm=>{const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.drawImage(bm,0,0);return g.getImageData(0,0,256,256).data}).catch(()=>{delete DEM[k];return null}))}
-async function legMaxFt(a,b){const z=12,n=2**z,m=Math.max(2,Math.ceil(legCalc(a,b).nm*1852/60));let mx=-1e9,ok=0;
+const PROF={};
+async function legMaxFt(a,b){const z=12,n=2**z,m=Math.max(2,Math.ceil(legCalc(a,b).nm*1852/60));let mx=-1e9,ok=0;const pr=[],bin=Math.max(1,Math.round(m/200));let bm=-1e9;
   for(let j=0;j<=m;j++){const la=a.lat+(b.lat-a.lat)*j/m,lo=a.lon+(b.lon-a.lon)*j/m,r=la*Math.PI/180;
     const fx=(lo+180)/360*n,fy=(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n,tx=Math.floor(fx),ty=Math.floor(fy);
     const d=await demTile(z,tx,ty);if(!d)continue;const i=(Math.floor((fy-ty)*256)*256+Math.floor((fx-tx)*256))*4;
-    mx=Math.max(mx,d[i]*256+d[i+1]+d[i+2]/256-32768);ok=1}
-  return ok?Math.max(0,mx)*3.28084:null}
+    const e=d[i]*256+d[i+1]+d[i+2]/256-32768;mx=Math.max(mx,e);bm=Math.max(bm,e);ok=1;if(j%bin===0||j===m){pr.push(Math.max(0,bm)*3.28084);bm=-1e9}}
+  if(ok)PROF[ekey(a,b)]=pr;return ok?Math.max(0,mx)*3.28084:null}
+function profile(L_){const g=$('prG');if(!L_.length){g.innerHTML='<div class="e">เพิ่มจุดอย่างน้อย 2 จุด</div>';$('prM').textContent='';return}
+  const W=320,H=170,ml=42,mr=8,mt=16,mb=26,pw=W-ml-mr,ph=H-mt-mb,tot=L_.reduce((s,l)=>s+l.nm,0)||1;
+  let pts=[],x0=0,miss=0;L_.forEach((l,i)=>{const p=PROF[ekey(S.pts[i],S.pts[i+1])];if(!p)miss++;else p.forEach((v,j)=>pts.push([x0+l.nm*j/(p.length-1),v]));x0+=l.nm});
+  const mx=pts.reduce((s,p)=>Math.max(s,p[1]),0),st=[1,2,2.5,5].flatMap(k=>[k,k*10,k*100,k*1000,k*10000]).sort((a,b)=>a-b).find(k=>k*4>=Math.max(mx*1.1,20)),ym=st*4;
+  const X=v=>ml+v/tot*pw,Y=v=>mt+ph-v/ym*ph,t='font-family="Consolas,monospace" font-size="9"';let o='';
+  for(let k=0;k<=4;k++){const y=Y(st*k);o+=`<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="#3d4147"/><text x="${ml-4}" y="${y+3}" text-anchor="end" fill="#c9ccd1" ${t}>${st*k}</text>`}
+  for(let k=0;k<=5;k++){const v=tot*k/5,x=X(v);o+=`<line x1="${x}" x2="${x}" y1="${mt}" y2="${mt+ph}" stroke="#34373c"/><text x="${x}" y="${mt+ph+11}" text-anchor="middle" fill="#9ccfe8" ${t}>${Math.round(v)}</text>`}
+  let c=0;S.pts.forEach((p,i)=>{if(i)c+=L_[i-1].nm;const x=X(c);o+=`<line x1="${x}" x2="${x}" y1="${mt}" y2="${mt+ph}" stroke="#5BC0EB" stroke-dasharray="3 3" opacity=".8"/><text x="${x+2}" y="${mt-4}" fill="#7fd3f5" ${t}>${i+1}</text>`});
+  if(pts.length>1){const d=pts.map((p,k)=>(k?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');
+    o+=`<path d="${d}L${X(pts[pts.length-1][0]).toFixed(1)} ${Y(0)}L${X(pts[0][0]).toFixed(1)} ${Y(0)}Z" fill="#F2B43C" opacity=".18"/><path d="${d}" fill="none" stroke="#F2B43C" stroke-width="1.6"/>`}
+  o+=`<text x="${ml+pw/2}" y="${H-3}" text-anchor="middle" fill="#e8e8e8" ${t}>Distance (NM)</text><text transform="translate(8 ${mt+ph/2}) rotate(-90)" text-anchor="middle" fill="#e8e8e8" ${t}>Feet (Ft)</text>`;
+  if(miss)o+=`<text x="${ml+pw/2}" y="${mt+ph/2}" text-anchor="middle" fill="#9aa0a6" font-size="11">กำลังโหลดข้อมูลความสูง… (${miss} ขา)</text>`;
+  g.innerHTML=`<svg viewBox="0 0 ${W} ${H}">${o}</svg>`;$('prM').textContent=`Max ${Math.round(mx)} Ft • ${Math.round(tot)} NM`}
 function terrain(){S.pts.slice(1).forEach((b,i)=>{const a=S.pts[i],k=ekey(a,b);if(k in ELV||ELP[k])return;ELP[k]=1;
   legMaxFt(a,b).then(f=>{delete ELP[k];if(f==null)return;ELV[k]=f;draw()})})}
 // draw route layers into group g; ro=read-only (print pages)
@@ -318,7 +335,7 @@ function list(L_,tot,tmin){
     <input value="${p.lat}" title="Lat" onchange="setLL(${i},'lat',this.value)" style="grid-column:span 2"><input value="${p.lon}" title="Lon" onchange="setLL(${i},'lon',this.value)" style="grid-column:span 2"></div></li>`}).join('')
     +(L_.length?`<li class="v" style="color:var(--au);font:bold 12px Consolas,monospace">TOTAL ${tot.toFixed(1)} NM · ${hm(tmin)}</li>`:'');
   const alts=L_.map(l=>parseFloat(l.alt)).filter(x=>!isNaN(x));
-  $('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;$('stA').textContent=alts.length?Math.max(...alts)+' ft':'-';}
+  profile(L_);$('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;$('stA').textContent=alts.length?Math.max(...alts)+' ft':'-';}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
 function reverseRoute(){const n=S.pts.length;if(n<2)return;
   const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx}));
