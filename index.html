@@ -87,6 +87,7 @@ fieldset>*:not(legend){clear:both}
 #edp{display:none;position:fixed;top:12px;right:12px;width:270px;max-height:calc(100vh - 24px);overflow:auto;background:#fff;color:#222;border-radius:8px;box-shadow:0 4px 18px #0007;padding:10px 12px;z-index:1000;font-size:12px}
 #edp.lft{right:auto;left:calc(clamp(320px,25vw,560px) + 12px)}.edh{display:flex;justify-content:flex-end;gap:4px;margin:-4px -4px 2px}.edh button{background:#eee!important;color:#333!important;border:0;padding:2px 8px}
 .edh .grip{flex:1;cursor:move;user-select:none;touch-action:none;color:#888;font-size:11px;align-self:center;padding:2px 0}.edh .grip:hover{color:#333}
+#edp .pos{margin:8px 0 6px;padding:6px 8px;background:#f3f4f6;border:1px solid #d5d8dc;border-radius:6px;font-family:Consolas,monospace}#edp .pos div{display:flex;justify-content:space-between;gap:8px}#edp .pos span{color:#666;font-size:11px}#edp .pos b{color:#111;font-size:13px}
 #edp input:not([type=checkbox]):not([type=range]),#edp select{background:#eceef1;color:#111;border:1px solid #b9bec5}#edp input::placeholder{color:#6b7078}
 .pop input{width:100%;margin:2px 0 6px;padding:4px}.pop label{display:block;color:#333;font-size:11px}.pop button{margin-right:4px;color:#fff}
 .box,.lbl{cursor:pointer}
@@ -156,8 +157,8 @@ body{height:100dvh}
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
-  <div id="llBox" style="display:none"><div class="sm">Lat / Lon (เช่น 16.1168 หรือ N16 07.01)</div>
-   <div class="row"><input id="fLat" placeholder="Lat"><input id="fLon" placeholder="Lon"></div></div>
+  <div id="llBox" style="display:none"><div class="sm">Lat / Lon แบบ องศา ลิปดา.ทศนิยม (ไม่ต้องใส่ N/E) เช่น 16 07.01 / 103 46.45</div>
+   <div class="row"><input id="fLat" placeholder="16 07.01" inputmode="decimal"><input id="fLon" placeholder="103 46.45" inputmode="decimal"></div></div>
   <div class="row"><div><div class="sm">Type</div><input id="fType" list="types" placeholder="อัตโนมัติ"></div>
    <div><div class="sm">ALT ft</div><input id="fAlt" value="1100"></div></div>
   <datalist id="types"><option>PZ<option>CP<option>LZ<option>SP<option>RP</datalist>
@@ -385,6 +386,7 @@ function editLbl(i){const p=S.pts[i];
    <label>ข้อมูลตาราง (เว้นว่าง = ค่าอัตโนมัติ)</label><div class="g">${(p._auto||[]).map((v,k)=>`<input id="tv${k}" value="${esc((p.tv||[])[k])}" placeholder="${esc(v)}">`).join('')}</div>
    <label>ขนาดป้าย/ตาราง</label>${pctIn('lS',(p.lsc||S.ui.lsc||1)*100,`S.pts[${i}].lsc=this.value/100;draw()`)}
    <label>ขนาดสัญลักษณ์จุด</label>${pctIn('mS',(p.msc||S.ui.msc||1)*100,`S.pts[${i}].msc=this.value/100;draw()`)}
+   <div class="pos"><div><span>LAT/LONG</span><b>${ddm(p.lat)}&nbsp;&nbsp;${ddm(p.lon)}</b></div><div><span>MGRS</span><b>${mgrs(p.lat,p.lon)}</b></div></div>
    <label>เลื่อนตาราง ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tbx||0}" oninput="S.pts[${i}].tbx=+this.value;draw()">
    <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
    <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','msc','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
@@ -394,14 +396,14 @@ function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').
 // ---- waypoint list (AirNavFlow style) ----
 function list(L_,tot,tmin){
   $('wpl').innerHTML=S.pts.map((p,i)=>{const l=L_[i-1];return `<li><div class="wr">
-   <div class="nm"><span class="num">${i+1}</span><div style="min-width:0"><b>${esc(p.type)} ${esc(p.name)}</b><div class="sub">${(+p.lat).toFixed(4)}, ${(+p.lon).toFixed(4)}</div></div></div>
+   <div class="nm"><span class="num">${i+1}</span><div style="min-width:0"><b>${esc(p.type)} ${esc(p.name)}</b><div class="sub">${ddm(p.lat)}, ${ddm(p.lon)}</div></div></div>
    <span class="v">${l?l.nm.toFixed(1):''}</span><span class="v">${l?esc(l.crsTxt)+'°':''}</span><span class="v">${l?hm(l.min):''}</span><span class="v">${esc(p.alt)}</span>
    <div class="btns"><button onclick="mv(${i},-1)" title="เลื่อนขึ้น">↑</button><button class="x" onclick="resetBox(${i}-1);S.pts.splice(${i},1);draw()" title="ลบ">✕</button>
     <button onclick="mv(${i},1)" title="เลื่อนลง">↓</button><button onclick="ins(${i})" title="แทรกจุดถัดไป">↓+</button>
     <button onclick="this.closest('li').querySelector('.ed').classList.toggle('on')" title="แก้ไข" style="grid-column:span 2">✎</button></div></div>
    <div class="ed"><input value="${esc(p.type)}" title="Type" onchange="S.pts[${i}].type=this.value;draw()"><input value="${esc(p.name)}" title="Name" onchange="S.pts[${i}].name=this.value;draw()" style="grid-column:span 2">
     <input value="${esc(p.alt)}" title="ALT" onchange="S.pts[${i}].alt=this.value;draw()"><span></span>
-    <input value="${p.lat}" title="Lat" onchange="setLL(${i},'lat',this.value)" style="grid-column:span 2"><input value="${p.lon}" title="Lon" onchange="setLL(${i},'lon',this.value)" style="grid-column:span 2"></div></li>`}).join('')
+    <input value="${ddm(p.lat)}" title="Lat (DD MM.mm)" inputmode="decimal" onchange="setLL(${i},'lat',this.value)" style="grid-column:span 2"><input value="${ddm(p.lon)}" title="Lon (DDD MM.mm)" inputmode="decimal" onchange="setLL(${i},'lon',this.value)" style="grid-column:span 2"></div></li>`}).join('')
     +(L_.length?`<li class="v" style="color:var(--au);font:bold 12px Consolas,monospace">TOTAL ${tot.toFixed(1)} NM · ${hm(tmin)}</li>`:'');
   profile(L_);$('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
@@ -426,8 +428,27 @@ function togSide(){const b=document.body.classList;
 function togTxt(){const b=document.body.classList;$('tog').textContent=isPh()?(b.contains('hide')?'▲ เมนู':b.contains('full')?'▼':'▲'):(b.contains('hide')?'▶':'◀')}
 addEventListener('resize',()=>{togTxt();map.invalidateSize()});
 // ---- add waypoint (On MAP / LAT-LONG) ----
+// degrees + decimal minutes; N/E assumed (Thailand). Accepts "16 07.01", "16°07.01'", "1607.01" / "10346.45",
+// also D M S ("16 07 01") and plain decimal degrees ("16.1168")
+// WGS84 lat/lon -> MGRS (1 m), e.g. "48Q TC 12345 67890"
+function mgrs(lat,lon){lat=+lat;lon=+lon;if(!(lat>=-80&&lat<=84))return '-';
+  let z=Math.floor((lon+180)/6)+1;if(lat>=56&&lat<64&&lon>=3&&lon<12)z=32;
+  if(lat>=72){if(lon>=0&&lon<9)z=31;else if(lon>=9&&lon<21)z=33;else if(lon>=21&&lon<33)z=35;else if(lon>=33&&lon<42)z=37}
+  const a=6378137,f=1/298.257223563,e2=f*(2-f),ep=e2/(1-e2),k0=0.9996,r=Math.PI/180,ph=lat*r,l0=((z-1)*6-180+3)*r;
+  const N=a/Math.sqrt(1-e2*Math.sin(ph)**2),T=Math.tan(ph)**2,C=ep*Math.cos(ph)**2,A=Math.cos(ph)*(lon*r-l0);
+  const M=a*((1-e2/4-3*e2*e2/64-5*e2**3/256)*ph-(3*e2/8+3*e2*e2/32+45*e2**3/1024)*Math.sin(2*ph)+(15*e2*e2/256+45*e2**3/1024)*Math.sin(4*ph)-(35*e2**3/3072)*Math.sin(6*ph));
+  const E=k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*ep)*A**5/120)+500000;
+  let Nn=k0*(M+N*Math.tan(ph)*(A*A/2+(5-T+9*C+4*C*C)*A**4/24+(61-58*T+T*T+600*C-330*ep)*A**6/720));if(lat<0)Nn+=10000000;
+  const band='CDEFGHJKLMNPQRSTUVWXX'[Math.floor((lat+80)/8)],set=(z-1)%3,
+    col=['ABCDEFGH','JKLMNPQR','STUVWXYZ'][set][Math.floor(E/100000)-1],
+    row='ABCDEFGHJKLMNPQRSTUV'[(Math.floor(Nn/100000)+(z%2?0:5))%20];
+  const e5=String(Math.floor(E%100000)).padStart(5,'0'),n5=String(Math.floor(Nn%100000)).padStart(5,'0');
+  return `${z}${band} ${col}${row} ${e5} ${n5}`}
+function ddm(v){v=+v;const a=Math.abs(v);let d=Math.floor(a),m=+((a-d)*60).toFixed(2);if(m>=60){d++;m=0}return (v<0?'-':'')+d+' '+m.toFixed(2).padStart(5,'0')}
 function parseCoord(v){v=String(v).trim().toUpperCase();if(!v)return null;
-  const neg=/^[SW-]|[SW]$/.test(v);const n=v.replace(/[NSEW°'"]/g,' ').trim().split(/[\s,]+/).map(Number);
+  const neg=/^[SW-]|[SW]$/.test(v);let n=v.replace(/[NSEW°'"-]/g,' ').trim().split(/[\s,]+/).map(Number);
+  if(n.length===1&&n[0]>=1000){const d=Math.floor(n[0]/100);n=[d,n[0]-d*100]}
+  if(n.length>1&&(n[1]>=60||n[2]>=60))return null;
   if(n.some(isNaN)||!n.length)return null;const d=Math.abs(n[0])+(n[1]||0)/60+(n[2]||0)/3600;return +((neg?-1:1)*d).toFixed(6)}
 function autoType(){if(!S.pts.length)return 'PZ';return 'CP'+(Math.max(0,...S.pts.map(p=>+(/^CP(\d+)/i.exec(p.type)||[0,0])[1]))+1)}
 function addPt(lat,lon){const n=S.pts.length,at=n&&kind(S.pts[n-1].type)==='LZ'?n-1:n; // keep LZ last
