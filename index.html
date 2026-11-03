@@ -121,7 +121,10 @@ body{height:100dvh}
 /* phone landscape: narrow side panel */
 @media (max-height:500px) and (orientation:landscape){
  #side{width:min(300px,42vw);min-width:0}#tog{left:min(300px,42vw)}#edp.lft{left:calc(min(300px,42vw) + 12px)}
- #edp{top:6px;right:6px;max-height:calc(100dvh - 12px)}
+ /* leg/label editor: covers the side panel (like the portrait bottom sheet) so the map stays visible */
+ #edp,#edp.lft{top:0;bottom:0;left:0;right:auto;width:min(300px,42vw);height:100dvh;max-height:none;border-radius:0 12px 12px 0;border-right:2px solid var(--au);box-shadow:4px 0 14px #0007;padding:8px 12px calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));z-index:1100}
+ body.editing #tog{display:none}
+ #edp .edh{float:right;margin:0 -6px 0 8px}#edp .edh button:first-child{display:none}
  #stats b{font-size:18px}#hdr{padding:8px 12px}#prof{padding:6px 12px}
 }
 #upd{display:none;position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:3000;background:#F2B43C;color:#111;font:bold 14px sans-serif;padding:10px 16px;border-radius:20px;box-shadow:0 3px 12px #0008;cursor:pointer}
@@ -281,7 +284,7 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
     const dash=(a.ln||S.ui.line)==='dash'?'10 8':null; // per-leg line style overrides the global one
-    L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:4,opacity:.95,dashArray:dash}:{color:'#000',weight:3,dashArray:dash}).addTo(g);
+    L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4,opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3,dashArray:dash}).addTo(g);
     if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
     if(!$('shBox').checked)return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
@@ -333,8 +336,8 @@ function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt
 // ---- editable leg box / label (popup forms) ----
 // edit form lives in a floating panel at the map edge, so it never covers the label/box being adjusted
 let edPrev=null; // phone portrait: remember sheet state, show editor in place of the menu
-function popForm(ll,html){if(isPh()&&edPrev===null){const b=document.body.classList;edPrev=b.contains('full')?'full':b.contains('hide')?'hide':'';b.remove('full','hide');b.add('editing');togTxt();setTimeout(()=>map.invalidateSize(),50)}const e=$('edp');e.innerHTML=`<div class="pop"><div class="edh"><button title="ย้ายไปอีกด้าน" onclick="$('edp').classList.toggle('lft')">⇆</button><button title="ปิด" onclick="closeEd()">✕</button></div>${html}</div>`;e.style.display='block'}
-function closeEd(){const e=$('edp');if(e){e.style.display='none';e.innerHTML=''}if(edPrev!==null){document.body.classList.remove('editing');if(edPrev&&isPh())document.body.classList.add(edPrev);edPrev=null;togTxt();setTimeout(()=>map.invalidateSize(),50)}}
+function popForm(ll,html){if(isSheet()&&edPrev===null){const b=document.body.classList;edPrev=b.contains('full')?'full':b.contains('hide')?'hide':'';b.remove('full','hide');b.add('editing');togTxt();setTimeout(()=>map.invalidateSize(),50)}const e=$('edp');e.innerHTML=`<div class="pop"><div class="edh"><button title="ย้ายไปอีกด้าน" onclick="$('edp').classList.toggle('lft')">⇆</button><button title="ปิด" onclick="closeEd()">✕</button></div>${html}</div>`;e.style.display='block'}
+function closeEd(){const e=$('edp');if(e){e.style.display='none';e.innerHTML=''}if(edPrev!==null){document.body.classList.remove('editing');if(edPrev&&isSheet())document.body.classList.add(edPrev);edPrev=null;togTxt();setTimeout(()=>map.invalidateSize(),50)}}
 function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
   popForm(ll,`<b>Leg ${i+1}: ${esc(a.type)} → ${esc(S.pts[i+1].type)}</b><br><small>เว้นว่าง = คำนวณอัตโนมัติ</small>
    <label>HDG/CRS</label><input id="eC" value="${esc(o.crs)}" placeholder="${pad3(l.tc)}">
@@ -344,10 +347,11 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
    <label>สีกรอบ</label><input id="eK" type="color" value="${o.col||'#1F4E79'}">
    ${(b=>`<label style="color:#333"><input type="checkbox" id="bH" ${b.h?'checked':''} style="width:auto"> สามเหลี่ยมหัว</label><label style="color:#333"><input type="checkbox" id="bT" ${b.t?'checked':''} style="width:auto"> สามเหลี่ยมท้าย</label><label style="color:#333"><input type="checkbox" id="bR" ${b.r?'checked':''} style="width:auto"> แสดงทิศกลับ (${pad3(l.crsNum+180)})</label>`)(Object.assign({h:true,t:true,r:true},a.bx||{}))}
    <label>เส้น leg นี้</label><select id="eLn" onchange="S.pts[${i}].ln=this.value;draw()" style="width:100%"><option value="">ตามค่าหลัก</option><option value="solid" ${a.ln==='solid'?'selected':''}>เส้นทึบ</option><option value="dash" ${a.ln==='dash'?'selected':''}>เส้นประ</option></select>
+   <label>ความหนาเส้น leg (px)</label><div class="pct"><input id="eW" type="range" min="1" max="12" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)}" oninput="$('eWn').value=this.value;S.pts[${i}].lw=+this.value;draw()"><input id="eWn" type="number" min="0.5" max="30" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)}" oninput="if(this.value>0){$('eW').value=this.value;S.pts[${i}].lw=+this.value;draw()}"><span>px</span></div>
    <label>ขนาดกล่อง</label>${pctIn('bS',(a.bsc||S.ui.bsc||1)*100,`S.pts[${i}].bsc=this.value/100;draw()`)}
-   <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบ/ขนาดกล่องนี้กับทุก leg</label>
-   <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};closeEd();draw()">คืนค่าอัตโนมัติ</button>`)}
-function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.pts.forEach(p=>{p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),alt:$('eA').value.trim(),col:$('eK').value};closeEd();draw()}
+   <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบ/ขนาดกล่อง/ความหนาเส้นนี้กับทุก leg</label>
+   <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};delete S.pts[${i}].lw;closeEd();draw()">คืนค่าอัตโนมัติ</button>`)}
+function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.ui.lw=+$('eWn').value||undefined;S.pts.forEach(p=>{delete p.lw;p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),alt:$('eA').value.trim(),col:$('eK').value};closeEd();draw()}
 function editLbl(i){const p=S.pts[i];
   popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
    <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(p.ltxt)}" placeholder="${esc(p.type+' '+p.name)}">
@@ -377,8 +381,8 @@ function list(L_,tot,tmin){
   profile(L_);$('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
 function reverseRoute(){const n=S.pts.length;if(n<2)return;
-  const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx,bsc:p.bsc,ln:p.ln}));
-  S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined};Object.assign(p,d)});
+  const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx,bsc:p.bsc,ln:p.ln,lw:p.lw}));
+  S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined,lw:undefined};Object.assign(p,d)});
   const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2)}
   draw()}
 function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
@@ -387,6 +391,8 @@ function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;resetBox(i-1,i,i+d-1,i+d);[S
 function ins(i){const a=S.pts[i],b=S.pts[i+1];if(!b)return setMode('map');resetBox(i);
   S.pts.splice(i+1,0,{type:'CP',name:'',lat:+((a.lat+b.lat)/2).toFixed(6),lon:+((a.lon+b.lon)/2).toFixed(6),alt:a.alt});draw()}
 const isPh=()=>matchMedia('(max-width:700px) and (orientation:portrait)').matches;
+// editor replaces the side panel/sheet on phones, portrait or landscape
+const isSheet=()=>isPh()||matchMedia('(max-height:500px) and (orientation:landscape)').matches;
 // desktop/landscape: show <-> hide. phone portrait sheet: half -> full -> hidden -> half
 function togSide(){const b=document.body.classList;
   if(isPh()){if(b.contains('hide'))b.remove('hide');else if(b.contains('full')){b.remove('full');b.add('hide')}else b.add('full')}
