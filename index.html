@@ -24,6 +24,7 @@ body.hide #side{display:none}
 #hdr{padding:14px 14px 10px;border-bottom:1px solid var(--ln)}#hdr b{font-size:18px}#hdr small{display:block;margin-top:4px;color:var(--cy);font:11px Consolas,monospace;letter-spacing:.5px}
 #prof{padding:10px 14px 12px;border-bottom:1px solid var(--ln)}#prof .ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}#prof .ph b{font-size:14px}#prof .ph span{font:11px Consolas,monospace;color:var(--mu)}
 #prG svg{display:block;width:100%;height:auto;background:#2b2e33;border:1px solid var(--ln);border-radius:8px}#prG .e{color:var(--mu);font-size:11px;padding:8px 0}
+#stats #kt{width:90px;font:15px Consolas,monospace;padding:1px 6px;margin:0}
 #stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid var(--ln)}
 #stats div{color:var(--mu);font-size:12px}#stats b{display:block;color:var(--tx);font:15px Consolas,monospace;margin-top:2px}
 fieldset{margin:0;border:0;border-bottom:1px solid var(--ln);padding:12px 14px}legend{float:left;width:100%;font-weight:bold;font-size:13px;margin-bottom:8px;color:var(--tx)}
@@ -88,7 +89,7 @@ fieldset>*:not(legend){clear:both}
 </style></head><body>
 <div id="side">
  <div id="hdr"><b>FALCONtoCP</b><small>ROUTE PLANNER · PZ / CP / LZ</small></div>
- <div id="stats"><div>Distance<b id="stD">-</b></div><div>Flight Time<b id="stT">-</b></div><div>Waypoints<b id="stN">-</b></div><div>Highest ALT<b id="stA">-</b></div></div>
+ <div id="stats"><div>Distance<b id="stD">-</b></div><div>Flight Time<b id="stT">-</b></div><div>Waypoints<b id="stN">-</b></div><div>GS (KTS)<b><input id="kt" type="number" min="1" value="120" title="Ground speed"></b></div></div>
  <div id="prof"><div class="ph"><b>Elevation Profile</b><span id="prM"></span></div><div id="prG"></div></div>
  <fieldset><legend>MAP</legend>
   <select id="mapSel" style="width:100%" onchange="pickMap(this.value)"></select>
@@ -100,12 +101,6 @@ fieldset>*:not(legend){clear:both}
    <label><input type="checkbox" id="tms"> TMS (gdal2tiles ไม่ได้ใส่ --xyz)</label>
    <button class="pri" onclick="$('mapSel').value='';setBase()">โหลด URL นี้</button>
   </details>
- </fieldset>
- <fieldset><legend>FLIGHT PARAMETER</legend>
-  GS <input id="kt" class="s" type="number" value="90"> kt &nbsp; VAR <input id="var" class="s" type="number" step="0.1" value="0"> (E=+)
-  <label><input type="checkbox" id="mag"> แสดงเป็น MH</label>
-  <div class="sm">เวลารวม = NM/GS + 5 นาที ปัดเป็น :x0/:x5 · ส่วนที่เพิ่ม ½ ใส่ขาสุดท้าย ½ เฉลี่ยตามระยะ</div>
-  <div class="sm">ALT ใน leg box = พื้นสูงสุดตามแนวขา ปัดขึ้นหลักร้อย + 500 ft (ต้องออนไลน์ครั้งแรก)</div>
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
@@ -179,9 +174,9 @@ const pad3=x=>String(Math.round(x)%360).padStart(3,'0');
 const has=v=>v!==undefined&&v!==null&&String(v).trim()!=='';
 function parseT(t){if(!has(t))return null;const m=/^(\d+):(\d{1,2})$/.exec(String(t).trim());return m?+m[1]*60+ +m[2]:isNaN(+t)?null:+t}
 // leg values: computed, then user overrides from the leg box (a.ov)
-function legs(){const kt=+$('kt').value||90,v=+$('var').value||0;
+function legs(){const kt=+$('kt').value||120;
   const L_=S.pts.slice(1).map((b,i)=>{const a=S.pts[i],c=legCalc(a,b),o=a.ov||{};
-    const crs=$('mag').checked?(c.tc-v+360)%360:c.tc;
+    const crs=c.tc;
     const nm=has(o.nm)&&!isNaN(+o.nm)?+o.nm:c.nm,min=parseT(o.t)??nm/kt*60;
     return {tc:c.tc,nm,min,man:parseT(o.t)!==null,crsTxt:has(o.crs)?o.crs:pad3(crs),crsNum:has(o.crs)&&!isNaN(+o.crs)?+o.crs:crs,alt:legAlt(a,b,o),o}});
   return timeRule(L_);}
@@ -194,7 +189,7 @@ function timeRule(L_){const au=L_.filter(l=>!l.man);if(!au.length)return L_;
   const tgt=T-L_.filter(l=>l.man).reduce((s,l)=>s+l.min,0),fl=au.map(l=>Math.floor(l.min));let r=Math.round(tgt-fl.reduce((s,x)=>s+x,0));
   au.map((l,k)=>[l.min-fl[k],k]).sort((x,y)=>y[0]-x[0]).forEach(([,k])=>{if(r>0){fl[k]++;r--}});
   au.forEach((l,k)=>l.min=fl[k]);return L_}
-function save(){S.cfg={url:$('tileUrl').value,tms:$('tms').checked,kt:$('kt').value,v:$('var').value,mag:$('mag').checked};
+function save(){S.cfg={url:$('tileUrl').value,tms:$('tms').checked,kt:$('kt').value};
   S.ui.lbl=$('shLbl').checked;S.ui.box=$('shBox').checked;S.ui.off=$('offl').checked;
   try{localStorage.setItem('routeS',JSON.stringify(S))}catch(e){}
   navigator.serviceWorker?.controller?.postMessage({offline:S.ui.off});}
@@ -334,8 +329,7 @@ function list(L_,tot,tmin){
     <input value="${esc(p.alt)}" title="ALT" onchange="S.pts[${i}].alt=this.value;draw()"><span></span>
     <input value="${p.lat}" title="Lat" onchange="setLL(${i},'lat',this.value)" style="grid-column:span 2"><input value="${p.lon}" title="Lon" onchange="setLL(${i},'lon',this.value)" style="grid-column:span 2"></div></li>`}).join('')
     +(L_.length?`<li class="v" style="color:var(--au);font:bold 12px Consolas,monospace">TOTAL ${tot.toFixed(1)} NM · ${hm(tmin)}</li>`:'');
-  const alts=L_.map(l=>parseFloat(l.alt)).filter(x=>!isNaN(x));
-  profile(L_);$('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;$('stA').textContent=alts.length?Math.max(...alts)+' ft':'-';}
+  profile(L_);$('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
 function reverseRoute(){const n=S.pts.length;if(n<2)return;
   const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx}));
@@ -364,7 +358,7 @@ function setMode(m){S.ui.mode=m;$('mOn').classList.toggle('on',m==='map');$('mLL
   map.getContainer().style.cursor=m==='map'?'crosshair':'';save()}
 function setStyle(s,user){S.ui.style=s;if(user){S.ui.line=s==='anf'?'solid':'dash'}$('lineSt').value=S.ui.line;$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
 map.on('click',e=>{if($('edp').style.display==='block'){closeEd();return}if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
-['kt','var','mag'].forEach(id=>$(id).onchange=draw);
+$('kt').oninput=draw;
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();undo()}});
 // ---- offline cache (service worker) ----
 async function cacheInfo(){try{const k=await caches.open('tiles').then(c=>c.keys());const e=await navigator.storage?.estimate?.();
@@ -461,7 +455,7 @@ async function printPages(){const {c,pages,nr,nc}=prPages();if(!pages.length)ret
 addEventListener('afterprint',()=>{document.body.classList.remove('prtmode');prUpd()});
 // ---- init ----
 const qm=new URLSearchParams(location.search).get('map')||(window.CONFIG&&CONFIG.MAP_URL);
-if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.cfg.tms;$('kt').value=S.cfg.kt||90;$('var').value=S.cfg.v||0;$('mag').checked=!!S.cfg.mag;if(S.cfg.osm)$('tileUrl').value=OSM}
+if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.cfg.tms;$('kt').value=S.cfg.kt&&S.cfg.kt!='90'?S.cfg.kt:120;if(S.cfg.osm)$('tileUrl').value=OSM}
 if(S.pr){$('pS').value=S.pr.S;$('pP').value=S.pr.P;$('pO').value=S.pr.O;$('pOv').value=S.pr.ov;$('pM').value=S.pr.m;$('pLb').checked=S.pr.lb!==false}else if(/500k/i.test($('tileUrl').value))$('pS').value='500000';
 $('shLbl').checked=S.ui.lbl;$('shBox').checked=S.ui.box;$('offl').checked=S.ui.off;
 if(!S.pts.length)S.pts=[{type:'PZ',name:'ท่าอากาศยานร้อยเอ็ด',lat:16.1168,lon:103.7741,alt:'1100'},{type:'CP2',name:'สนาม ฮ. พล.ร.6',lat:16.105,lon:103.545,alt:'1100'},{type:'LZ',name:'สนาม ฮ. รร.สารคามพิทยาคม',lat:16.184,lon:103.3,alt:''}];
