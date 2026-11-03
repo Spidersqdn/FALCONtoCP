@@ -385,7 +385,7 @@ function editLbl(i){const p=S.pts[i];
    <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
    <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','msc','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
 function delPt(i){const p=S.pts[i];if(!confirm('ลบจุด '+(p.type+' '+p.name).trim()+' ? (กด Undo เพื่อย้อนได้)'))return;resetBox(i-1);S.pts.splice(i,1);closeEd();draw()}
-function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
+function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;if(p.lcol.toLowerCase()===col(p.type).toLowerCase())delete p.lcol;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
   if($('lAll').checked){S.ui.lsc=p.lsc;S.ui.msc=p.msc;S.pts.forEach(q=>{delete q.lsc;delete q.msc;q.tbx=p.tbx})}closeEd();draw()}
 // ---- waypoint list (AirNavFlow style) ----
 function list(L_,tot,tmin){
@@ -404,7 +404,7 @@ function list(L_,tot,tmin){
 function reverseRoute(){const n=S.pts.length;if(n<2)return;
   const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx,bsc:p.bsc,ln:p.ln,lw:p.lw}));
   S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined,lw:undefined};Object.assign(p,d)});
-  const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2)}
+  const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2);[f.lcol,z.lcol]=[z.lcol,f.lcol];['lcol'].forEach(k=>{if(f[k]==null)delete f[k];if(z[k]==null)delete z[k]})}
   draw()}
 function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
 function resetBox(...ix){ix.forEach(k=>{const p=S.pts[k];if(p){delete p.boff;delete p.box}})}

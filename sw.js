@@ -1,7 +1,7 @@
 // Offline cache: app files + map tiles (OSM tiles and PMTiles byte ranges) viewed while online.
 // Bump APP when sw.js changes. App files are always revalidated with the server, so index.html changes
 // reach installed (home-screen) apps without a bump; the page also checks for a new version on resume.
-const APP='app-v7',TILES='tiles';
+const APP='app-v8',TILES='tiles';
 const SHELL=['./','index.html','config.js','lib/leaflet.js','lib/leaflet.css','lib/pmtiles.js','lib/jszip.min.js','icon.svg','icon-192.png','manifest.webmanifest','lib/fonts/sarabun-400-thai.woff2','lib/fonts/sarabun-400-latin.woff2','lib/fonts/sarabun-700-thai.woff2','lib/fonts/sarabun-700-latin.woff2'];
 let offline=true;
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(APP).then(c=>c.addAll(SHELL.map(u=>new Request(u,{cache:'reload'})))).catch(()=>{}))});
