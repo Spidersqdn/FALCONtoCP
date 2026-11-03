@@ -185,7 +185,11 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:4,opacity:.95,dashArray:dash}:{color:'#000',weight:3,dashArray:dash}).addTo(g);
     if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
     if(!$('shBox').checked)return;
-    if(!a.box)a.box=[(a.lat+b.lat)/2-0.04,(a.lon+b.lon)/2];
+    // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
+    const mid=[(a.lat+b.lat)/2,(a.lon+b.lon)/2],half=Math.hypot(a.lat-b.lat,a.lon-b.lon)/2;
+    const dl=b.lat-a.lat,dn=b.lon-a.lon,k=0.035/(Math.hypot(dl,dn)||1),def=dn>=0?[-dn*k,dl*k]:[dn*k,-dl*k]; // default: beside the leg, below it
+    if(!a.boff){a.boff=a.box?[a.box[0]-mid[0],a.box[1]-mid[1]]:def;if(Math.hypot(...a.boff)>half+0.05)a.boff=def}
+    a.box=[mid[0]+a.boff[0],mid[1]+a.boff[1]];
     const bc=l.o.col||'#1F4E79';
     const bo=Object.assign({h:true,t:true,r:true},a.bx||{});
     // heading sits inside the head triangle, reciprocal inside the tail triangle (as cells if a triangle is off)
@@ -197,7 +201,7 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     const bx=L.marker(a.box,{draggable:!ro,interactive:!ro,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
       html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg) scale(${sc})"><div class="box" style="--bd:${bc};--h:${h}px">${bo.h?tipSvg(h,bc,0,hd):''}${cells}${bo.t?tipSvg(h,bc,1,rc):''}</div></div>`})}).addTo(g);
     if(ro)return;
-    bx.on('dragend',e=>{const q=e.target.getLatLng();a.box=[q.lat,q.lng];draw()});
+    bx.on('dragend',e=>{const q=e.target.getLatLng();a.boff=[q.lat-mid[0],q.lng-mid[1]];draw()});
     bx.on('click',()=>editBox(i,a.box));
   });
   S.pts.forEach((p,i)=>{ if(i>0){cn+=L_[i-1].nm;cm+=L_[i-1].min}
@@ -206,7 +210,8 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     if(!ro){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()})}
     if(!$('shLbl').checked)return;
-    if(!p.lbl)p.lbl=[p.lat+0.05,p.lon];
+    if(!p.loff)p.loff=p.lbl?[p.lbl[0]-p.lat,p.lbl[1]-p.lon]:[0.05,0]; // label follows its point
+    p.lbl=[p.lat+p.loff[0],p.lon+p.loff[1]];
     const auto=['','NM','MIN','TOTAL',Math.round(tot),hm(tmin),'ACTUAL',first?'-':Math.round(cn),first?'-':hm(cm),'REMAIN',last?'-':Math.round(tot-cn),last?'-':hm(tmin-cm)];
     p._auto=auto;const tv=p.tv||[],cell=k=>esc(has(tv[k])?tv[k]:auto[k]);
     const tbl=p.noTbl?'':`<table style="left:${p.tbx||0}px">${[0,1,2,3].map(r=>`<tr>${[0,1,2].map(c=>`<td>${cell(r*3+c)}</td>`).join('')}</tr>`).join('')}</table>`;
@@ -214,7 +219,7 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     const lb=L.marker(p.lbl,{draggable:!ro,interactive:!ro,icon:L.divIcon({className:'lbl',iconSize:null,iconAnchor:[0,0],
       html:`<div style="transform:translate(-50%,-50%) scale(${p.lsc||S.ui.lsc||1})"><div class="t" style="left:${p.tdx||0}px;background:${p.lcol||col(p.type)}">${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}</div>${tbl}</div>`})}).addTo(g);
     if(ro)return;
-    lb.on('dragend',e=>{const q=e.target.getLatLng();p.lbl=[q.lat,q.lng];draw()});
+    lb.on('dragend',e=>{const q=e.target.getLatLng();p.loff=[q.lat-p.lat,q.lng-p.lon];draw()});
     lb.on('click',()=>editLbl(i));
   });
   return {L_,tot,tmin};}
@@ -256,7 +261,7 @@ function list(L_,tot,tmin){
   $('wpl').innerHTML=S.pts.map((p,i)=>{const l=L_[i-1];return `<li><div class="wr">
    <div class="nm"><span class="num">${i+1}</span><div style="min-width:0"><b>${esc(p.type)} ${esc(p.name)}</b><div class="sub">${(+p.lat).toFixed(4)}, ${(+p.lon).toFixed(4)}</div></div></div>
    <span class="v">${l?l.nm.toFixed(1):''}</span><span class="v">${l?esc(l.crsTxt)+'°':''}</span><span class="v">${l?hm(l.min):''}</span><span class="v">${esc(p.alt)}</span>
-   <div class="btns"><button onclick="mv(${i},-1)" title="เลื่อนขึ้น">↑</button><button class="x" onclick="S.pts.splice(${i},1);draw()" title="ลบ">✕</button>
+   <div class="btns"><button onclick="mv(${i},-1)" title="เลื่อนขึ้น">↑</button><button class="x" onclick="resetBox(${i}-1);S.pts.splice(${i},1);draw()" title="ลบ">✕</button>
     <button onclick="mv(${i},1)" title="เลื่อนลง">↓</button><button onclick="ins(${i})" title="แทรกจุดถัดไป">↓+</button>
     <button onclick="this.closest('li').querySelector('.ed').classList.toggle('on')" title="แก้ไข" style="grid-column:span 2">✎</button></div></div>
    <div class="ed"><input value="${esc(p.type)}" title="Type" onchange="S.pts[${i}].type=this.value;draw()"><input value="${esc(p.name)}" title="Name" onchange="S.pts[${i}].name=this.value;draw()" style="grid-column:span 2">
@@ -267,13 +272,14 @@ function list(L_,tot,tmin){
   $('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;$('stA').textContent=alts.length?Math.max(...alts)+' ft':'-';}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
 function reverseRoute(){const n=S.pts.length;if(n<2)return;
-  const legd=S.pts.slice(0,-1).map(p=>({box:p.box,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx}));
-  S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,ov:undefined,alt:'',bx:undefined};Object.assign(p,d)});
+  const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx}));
+  S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined};Object.assign(p,d)});
   const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2)}
   draw()}
 function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
-function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
-function ins(i){const a=S.pts[i],b=S.pts[i+1];if(!b)return setMode('map');
+function resetBox(...ix){ix.forEach(k=>{const p=S.pts[k];if(p){delete p.boff;delete p.box}})}
+function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;resetBox(i-1,i,i+d-1,i+d);[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
+function ins(i){const a=S.pts[i],b=S.pts[i+1];if(!b)return setMode('map');resetBox(i);
   S.pts.splice(i+1,0,{type:'CP',name:'',lat:+((a.lat+b.lat)/2).toFixed(6),lon:+((a.lon+b.lon)/2).toFixed(6),alt:a.alt});draw()}
 // ---- add waypoint (On MAP / LAT-LONG) ----
 function parseCoord(v){v=String(v).trim().toUpperCase();if(!v)return null;
@@ -281,7 +287,7 @@ function parseCoord(v){v=String(v).trim().toUpperCase();if(!v)return null;
   if(n.some(isNaN)||!n.length)return null;const d=Math.abs(n[0])+(n[1]||0)/60+(n[2]||0)/3600;return +((neg?-1:1)*d).toFixed(6)}
 function autoType(){if(!S.pts.length)return 'PZ';return 'CP'+(Math.max(0,...S.pts.map(p=>+(/^CP(\d+)/i.exec(p.type)||[0,0])[1]))+1)}
 function addPt(lat,lon){const n=S.pts.length,at=n&&kind(S.pts[n-1].type)==='LZ'?n-1:n; // keep LZ last
-  S.pts.splice(at,0,{type:$('fType').value.trim()||autoType(),name:$('fName').value.trim(),lat:+lat.toFixed(6),lon:+lon.toFixed(6),alt:$('fAlt').value.trim()});
+  resetBox(at-1);S.pts.splice(at,0,{type:$('fType').value.trim()||autoType(),name:$('fName').value.trim(),lat:+lat.toFixed(6),lon:+lon.toFixed(6),alt:$('fAlt').value.trim()});
   $('fName').value='';$('fType').value='';draw()}
 function addFromForm(){if(S.ui.mode==='map')return alert('โหมด On MAP: คลิกบนแผนที่เพื่อวางจุด');
   const la=parseCoord($('fLat').value),lo=parseCoord($('fLon').value);if(la===null||lo===null)return alert('ใส่ Lat/Lon ให้ถูกต้อง');
