@@ -1,11 +1,11 @@
 // Offline cache: app files + map tiles (OSM tiles and PMTiles byte ranges) viewed while online.
-const APP='app-v2',TILES='tiles';
+const APP='app-v3',TILES='tiles';
 const SHELL=['./','index.html','config.js','lib/leaflet.js','lib/leaflet.css','lib/pmtiles.js','lib/jszip.min.js','lib/fonts/sarabun-400-thai.woff2','lib/fonts/sarabun-400-latin.woff2','lib/fonts/sarabun-700-thai.woff2','lib/fonts/sarabun-700-latin.woff2'];
 let offline=true;
 self.addEventListener('install',e=>{e.waitUntil(caches.open(APP).then(c=>c.addAll(SHELL)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==APP&&n!==TILES).map(n=>caches.delete(n)))).then(()=>self.clients.claim()))});
 self.addEventListener('message',e=>{if(e.data&&'offline' in e.data)offline=!!e.data.offline});
-const isOSM=u=>/(^|\.)tile\.openstreetmap\.org$/.test(u.hostname);
+const isOSM=u=>/(^|\.)tile\.openstreetmap\.org$/.test(u.hostname)||(u.hostname==='s3.amazonaws.com'&&u.pathname.startsWith('/elevation-tiles-prod/'));
 self.addEventListener('fetch',e=>{const r=e.request,u=new URL(r.url);if(r.method!=='GET')return;
   const range=r.headers.get('range');
   if(range&&/\.pmtiles$/i.test(u.pathname))return e.respondWith(rangeFetch(r,range));
