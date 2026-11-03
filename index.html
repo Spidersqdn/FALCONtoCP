@@ -55,6 +55,7 @@ fieldset label{display:block;margin:4px 0}
 .box .tip2{width:0;height:0;border-top:calc(var(--h)/2) solid transparent;border-bottom:calc(var(--h)/2) solid transparent;border-left:20px solid var(--bd);position:relative}
 .box .tip2:after{content:"";position:absolute;left:-19px;top:calc(5px - var(--h)/2);border-top:calc(var(--h)/2 - 5px) solid transparent;border-bottom:calc(var(--h)/2 - 5px) solid transparent;border-left:15px solid #fff}
 .box .c span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;white-space:nowrap}
+.pdfcap .box .c span{writing-mode:horizontal-tb;display:inline-block;transform:rotate(-90deg)}
 .hint{color:var(--mu);font-size:12px;padding:0 14px 14px}
 #side>button{margin:12px 14px 8px;width:calc(100% - 28px)}
 @media print{#side{display:none}}
@@ -187,8 +188,8 @@ body{height:100dvh}
   <label><input type="checkbox" id="pLb" checked onchange="prUpd()"> พิมพ์เลขแผ่น + scale bar ที่ขอบล่าง (นอกแผนที่)</label>
   <div class="sm" id="pInfo">-</div>
   <button onclick="prShow=!prShow;prUpd();if(prShow&&pgGrp.getLayers().length)map.fitBounds(L.featureGroup(pgGrp.getLayers()).getBounds())">แสดง/ซ่อนกรอบแผ่นบนแผนที่</button>
-  <button class="pri" onclick="printPages()">Print / Save PDF</button>
-  <div class="sm">หน้าต่าง Print: Scale = 100% / Actual size (ห้าม Fit to page) · เลือก Save as PDF เพื่อได้ไฟล์ PDF · เส้นประแดง = แนวขอบแผ่นข้างเคียง ใช้ต่อแผ่น</div>
+  <div class="row"><button class="pri" onclick="exportPDF()">Export PDF</button><button onclick="printPages()">Print</button></div>
+  <div class="sm">Export PDF = ไฟล์ขนาดจริง ใช้ได้ทุกเครื่อง (iPad แนะนำ) · ตอนพิมพ์ PDF ตั้ง Scale 100% / Actual size (ห้าม Fit to page) · เส้นประแดง = แนวขอบแผ่นข้างเคียง ใช้ต่อแผ่น</div>
  </fieldset>
  
  <p class="hint">On MAP: คลิกแผนที่เพื่อเพิ่มจุด · ลากจุด/ป้าย/กล่องได้ · คลิกกล่อง/ป้ายเพื่อแก้ค่า. ข้อมูลบันทึกในเบราว์เซอร์อัตโนมัติ</p>
@@ -513,19 +514,20 @@ function tileSrc(){const u=$('tileUrl').value;
   const tms=$('tms').checked&&u!==OSM;
   return {max:u===OSM?19:16,min:0,get:(z,x,y)=>Promise.resolve(L.Util.template(u,{z,x,s:'a',y:tms?(1<<z)-1-y:y}))}}
 // 128-px grid cells filled with 256-px tiles of zoom+1: 2x pixels on paper (~170-190 dpi)
-const HiRes=L.GridLayer.extend({createTile(co,done){const img=document.createElement('img');img.alt='';
+const HiRes=L.GridLayer.extend({createTile(co,done){const img=document.createElement('img');img.alt='';img.crossOrigin='anonymous';
   const fin=()=>done(null,img);this.options.src.get(co.z+1,co.x,co.y).then(s=>{if(!s)return fin();img.onload=img.onerror=fin;img.src=s}).catch(fin);return img}});
-async function printPages(){const {c,pages,nr,nc}=prPages();if(!pages.length)return alert('ยังไม่มีเส้นทาง');
-  if(pages.length>40&&!confirm(pages.length+' แผ่น ใช้เวลาโหลดนาน ต่อหรือไม่?'))return;
+// build off-screen sheet pages (#prt .pg) and wait for their tiles; returns config or null
+async function buildPages(){const {c,pages,nr,nc}=prPages();if(!pages.length){alert('ยังไม่มีเส้นทาง');return null}
+  if(pages.length>40&&!confirm(pages.length+' แผ่น ใช้เวลาโหลดนาน ต่อหรือไม่?'))return null;
   const st=$('pgCss')||document.head.appendChild(Object.assign(document.createElement('style'),{id:'pgCss'}));
   st.textContent=`@page{size:${c.paper} ${c.land?'landscape':'portrait'};margin:${c.m}mm}`;
   prMaps.forEach(m=>m.remove());prMaps=[];const box=$('prt');box.innerHTML='';const src=tileSrc();let done=0;
   const km=c.S/25000,nmL=Math.max(1,Math.round(c.S/50000)),barK=km*1e6/c.S,barN=nmL*1852000/c.S; // bar lengths in mm
-  const bar=(mm,t)=>`<div class="sb"><i style="width:${mm}mm;background:repeating-linear-gradient(90deg,#000 0 ${mm/4}mm,#fff ${mm/4}mm ${mm/2}mm)"></i>${t}</div>`;
+  const bar=(mm,t)=>`<div class="sb"><i style="width:${mm}mm;display:flex">${[0,1,2,3].map(k=>`<b style="flex:1;background:${k%2?'#fff':'#000'}"></b>`).join('')}</i>${t}</div>`;
   $('pInfo').textContent='กำลังโหลดแผนที่...';
   await Promise.all(pages.map((p,i)=>{const pg=document.createElement('div');pg.className='pg';pg.style.width=c.pw+'mm';box.appendChild(pg);
     const d=pg.appendChild(document.createElement('div'));d.className='pm';d.style.width=c.pw+'mm';d.style.height=c.ph+'mm';
-    const m=L.map(d,{zoomControl:false,attributionControl:false,zoomSnap:0,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false,
+    const m=L.map(d,{preferCanvas:true,zoomControl:false,attributionControl:false,zoomSnap:0,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false,
       dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false});
     prMaps.push(m);m.setView(p.center,zoomFor(p.center.lat,c.S),{animate:false});
     const lay=new HiRes({tileSize:128,src,maxNativeZoom:src.max-1,minNativeZoom:Math.max(0,src.min-1),keepBuffer:0,updateWhenIdle:false});
@@ -540,7 +542,21 @@ async function printPages(){const {c,pages,nr,nc}=prPages();if(!pages.length)ret
     d.insertAdjacentHTML('beforeend',el.join(''));
     if(c.ft)pg.insertAdjacentHTML('beforeend',`<div class="inf"><b>แผ่น ${i+1}/${pages.length}</b><span>แถว ${p.r+1} คอลัมน์ ${p.c+1} · 1:${c.S.toLocaleString()} · ${c.paper}</span>${bar(barK,km+' km')}${bar(barN,nmL+' NM')}${nbs.length?`<span class="nb">ต่อ: ${nbs.join(' ')}</span>`:''}</div>`);
     return ok}));
-  $('pInfo').textContent=`พร้อมพิมพ์ ${pages.length} แผ่น`;document.body.classList.add('prtmode');setTimeout(()=>window.print(),300)}
+  return {c,n:pages.length}}
+async function printPages(){const r=await buildPages();if(!r)return;
+  $('pInfo').textContent=`พร้อมพิมพ์ ${r.n} แผ่น`;document.body.classList.add('prtmode');setTimeout(()=>window.print(),300)}
+// Export PDF: rasterise each sheet (html2canvas) into a true-size PDF page (jsPDF); independent of the browser's print margins
+const loadJS=u=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=()=>no(new Error(u));document.head.appendChild(s)});
+async function exportPDF(){try{
+  if(!window.jspdf)await loadJS('lib/jspdf.umd.min.js');if(!window.html2canvas)await loadJS('lib/html2canvas.min.js');
+  const r=await buildPages();if(!r)return;const {c}=r,pgs=[...$('prt').querySelectorAll('.pg')];
+  const pdf=new jspdf.jsPDF({unit:'mm',format:c.paper.toLowerCase(),orientation:c.land?'l':'p',compress:true});
+  for(let i=0;i<pgs.length;i++){$('pInfo').textContent=`สร้าง PDF แผ่น ${i+1}/${pgs.length}...`;
+    const cv=await html2canvas(pgs[i],{scale:2,useCORS:true,backgroundColor:'#fff',logging:false,
+      onclone:d=>{d.body.classList.add('pdfcap');d.getElementById('prt').style.left='0'}});
+    if(i)pdf.addPage();pdf.addImage(cv.toDataURL('image/jpeg',0.9),'JPEG',c.m,c.m,c.pw,c.ph+c.ft,undefined,'FAST');cv.width=cv.height=0}
+  pdf.save(`map_1-${c.S/1000}k_${c.paper}_${pgs.length}p.pdf`);$('pInfo').textContent=`บันทึก PDF ${pgs.length} แผ่นแล้ว`;
+  }catch(e){alert('Export PDF ไม่สำเร็จ: '+e.message);$('pInfo').textContent='Export PDF ไม่สำเร็จ'}}
 addEventListener('afterprint',()=>{document.body.classList.remove('prtmode');prUpd()});
 // ---- init ----
 const qm=new URLSearchParams(location.search).get('map')||(window.CONFIG&&CONFIG.MAP_URL);
