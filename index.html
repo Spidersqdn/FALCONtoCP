@@ -48,10 +48,10 @@ fieldset label{display:block;margin:4px 0}
 #prt{position:absolute;left:-30000px;top:0}
 .pg{position:relative;overflow:hidden;background:#fff;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .pg:last-child{break-after:auto;page-break-after:auto}
-.pg .ov,.pg .inf,.pg .nb{position:absolute;z-index:900;pointer-events:none;color:#000}
+.pg .ov{position:absolute;z-index:900;pointer-events:none}.pm{position:relative;overflow:hidden}
 .pg .ov{border:0 dashed #d00}
-.pg .inf{left:3mm;bottom:3mm;background:#fffe;border:.3mm solid #000;padding:1mm 2mm;font:8pt Tahoma,sans-serif;line-height:1.5}
-.pg .nb{background:#fffd;border:.3mm solid #d00;color:#d00;font:bold 8pt Tahoma,sans-serif;padding:0 1.5mm}
+.pg .inf{display:flex;align-items:center;gap:4mm;height:8mm;padding-top:1mm;font:8pt Tahoma,sans-serif;color:#000;white-space:nowrap;overflow:hidden}
+.pg .nb{color:#d00;font-weight:bold}
 .sb{display:flex;align-items:center;gap:1.5mm}.sb i{display:inline-block;height:1.6mm;border:.25mm solid #000}
 .pgn{background:#d00;color:#fff;font:bold 13px Tahoma;padding:1px 6px;border-radius:3px;transform:translate(-50%,-50%);display:inline-block;white-space:nowrap}
 @media print{body.prtmode{display:block;height:auto;background:#fff}body.prtmode>*:not(#prt){display:none!important}body.prtmode #prt{position:static}}
@@ -122,6 +122,7 @@ fieldset>*:not(legend){clear:both}
    <div><div class="sm">แนว</div><select id="pO" onchange="prUpd()"><option value="p">ตั้ง<option value="l">นอน</select></div></div>
   <div class="row"><div><div class="sm">ทับขอบ (ซม.)</div><input id="pOv" type="number" value="1" min="1" step="0.5" onchange="prUpd()"></div>
    <div><div class="sm">ขอบเครื่องพิมพ์ (มม.)</div><input id="pM" type="number" value="6" min="0" onchange="prUpd()"></div></div>
+  <label><input type="checkbox" id="pLb" checked onchange="prUpd()"> พิมพ์เลขแผ่น + scale bar ที่ขอบล่าง (นอกแผนที่)</label>
   <div class="sm" id="pInfo">-</div>
   <button onclick="prShow=!prShow;prUpd();if(prShow&&pgGrp.getLayers().length)map.fitBounds(L.featureGroup(pgGrp.getLayers()).getBounds())">แสดง/ซ่อนกรอบแผ่นบนแผนที่</button>
   <button class="pri" onclick="printPages()">Print / Save PDF</button>
@@ -344,7 +345,7 @@ function exportKML(){const L_=legs();
 const PAPER={A4:[210,297],A3:[297,420]},MERC=L.CRS.EPSG3857,M0=2*Math.PI*6378137/256; // m/px at z0, equator
 let pmSrc=null,prShow=false,prMaps=[];const pgGrp=L.layerGroup().addTo(map);
 function prCfg(){const [w,h]=PAPER[$('pP').value],l=$('pO').value==='l',m=Math.max(0,+$('pM').value||0);
-  return {S:+$('pS').value,ov:Math.max(0,+$('pOv').value||0)*10,pw:(l?h:w)-2*m,ph:(l?w:h)-2*m-0.5,m,paper:$('pP').value,land:l}} // mm; -0.5 avoids a spill page
+  return {S:+$('pS').value,ov:Math.max(0,+$('pOv').value||0)*10,pw:(l?h:w)-2*m,ft:$('pLb').checked?8:0,ph:(l?w:h)-2*m-0.5-($('pLb').checked?8:0),m,paper:$('pP').value,land:l}} // mm; -0.5 avoids a spill page
 // zoom where 1 CSS px (1/96 in on paper) = S*0.0254/96 m on the ground at latitude lat
 const zoomFor=(lat,S)=>Math.log2(M0*Math.cos(lat*Math.PI/180)*96/(S*0.0254));
 function prPages(){const c=prCfg(),ll=[];
@@ -362,7 +363,7 @@ function prPages(){const c=prCfg(),ll=[];
   return {c,pages,nr,nc}}
 function prUpd(){if(!$('pS'))return;const {c,pages,nr,nc}=prPages();
   $('pInfo').textContent=pages.length?`${pages.length} แผ่น (${nr} แถว × ${nc} คอลัมน์) · ${c.paper} ${c.land?'แนวนอน':'แนวตั้ง'} · 1:${c.S.toLocaleString()} · 1 แผ่น ≈ ${(c.pw*c.S/1e6).toFixed(1)}×${(c.ph*c.S/1e6).toFixed(1)} กม.`:'ยังไม่มีเส้นทาง';
-  S.pr={S:$('pS').value,P:$('pP').value,O:$('pO').value,ov:$('pOv').value,m:$('pM').value};save();
+  S.pr={S:$('pS').value,P:$('pP').value,O:$('pO').value,ov:$('pOv').value,m:$('pM').value,lb:$('pLb').checked};save();
   pgGrp.clearLayers();if(!prShow)return;
   pages.forEach((p,i)=>{L.rectangle(p.b,{color:'#d00',weight:2,fill:true,fillOpacity:.04,dashArray:'6 4',interactive:false}).addTo(pgGrp);
     L.marker(p.center,{interactive:false,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pgn">${i+1}</span>`})}).addTo(pgGrp)})}
@@ -382,27 +383,29 @@ async function printPages(){const {c,pages,nr,nc}=prPages();if(!pages.length)ret
   const km=c.S/25000,nmL=Math.max(1,Math.round(c.S/50000)),barK=km*1e6/c.S,barN=nmL*1852000/c.S; // bar lengths in mm
   const bar=(mm,t)=>`<div class="sb"><i style="width:${mm}mm;background:repeating-linear-gradient(90deg,#000 0 ${mm/4}mm,#fff ${mm/4}mm ${mm/2}mm)"></i>${t}</div>`;
   $('pInfo').textContent='กำลังโหลดแผนที่...';
-  await Promise.all(pages.map((p,i)=>{const d=document.createElement('div');d.className='pg';d.style.width=c.pw+'mm';d.style.height=c.ph+'mm';box.appendChild(d);
+  await Promise.all(pages.map((p,i)=>{const pg=document.createElement('div');pg.className='pg';pg.style.width=c.pw+'mm';box.appendChild(pg);
+    const d=pg.appendChild(document.createElement('div'));d.className='pm';d.style.width=c.pw+'mm';d.style.height=c.ph+'mm';
     const m=L.map(d,{zoomControl:false,attributionControl:false,zoomSnap:0,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false,
       dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false});
     prMaps.push(m);m.setView(p.center,zoomFor(p.center.lat,c.S),{animate:false});
     const lay=new HiRes({tileSize:128,src,maxNativeZoom:src.max-1,minNativeZoom:Math.max(0,src.min-1),keepBuffer:0,updateWhenIdle:false});
     const ok=new Promise(res=>{const t=setTimeout(res,90000);lay.once('load',()=>{clearTimeout(t);res()})}).then(()=>{$('pInfo').textContent=`โหลดแผนที่ ${++done}/${pages.length} แผ่น`});
     lay.addTo(m);render(L.layerGroup().addTo(m),true);
-    const nb=(r,q)=>r>=0&&r<nr&&q>=0&&q<nc?r*nc+q+1:0,o=c.ov+'mm',el=[];
+    const nb=(r,q)=>r>=0&&r<nr&&q>=0&&q<nc?r*nc+q+1:0,o=c.ov+'mm',el=[],nbs=[];
     [[p.r-1,p.c,`left:0;right:0;top:${o};border-top-width:.4mm`,'top:1mm;left:50%;transform:translateX(-50%)','▲'],
      [p.r+1,p.c,`left:0;right:0;bottom:${o};border-bottom-width:.4mm`,'bottom:1mm;left:50%;transform:translateX(-50%)','▼'],
      [p.r,p.c-1,`top:0;bottom:0;left:${o};border-left-width:.4mm`,'left:1mm;top:50%;transform:translateY(-50%)','◀'],
      [p.r,p.c+1,`top:0;bottom:0;right:${o};border-right-width:.4mm`,'right:1mm;top:50%;transform:translateY(-50%)','▶']]
-     .forEach(([r,q,ls,ts,a])=>{const n=nb(r,q);if(n)el.push(`<div class="ov" style="${ls}"></div><div class="nb" style="${ts}">${a} แผ่น ${n}</div>`)});
-    d.insertAdjacentHTML('beforeend',el.join('')+`<div class="inf"><b>แผ่น ${i+1}/${pages.length}</b> (แถว ${p.r+1} คอลัมน์ ${p.c+1}) · 1:${c.S.toLocaleString()} · ${c.paper}<br>${bar(barK,km+' km')}${bar(barN,nmL+' NM')}</div>`);
+     .forEach(([r,q,ls,ts,a])=>{const n=nb(r,q);if(n){el.push(`<div class="ov" style="${ls}"></div>`);nbs.push(`${a}${n}`)}});
+    d.insertAdjacentHTML('beforeend',el.join(''));
+    if(c.ft)pg.insertAdjacentHTML('beforeend',`<div class="inf"><b>แผ่น ${i+1}/${pages.length}</b><span>แถว ${p.r+1} คอลัมน์ ${p.c+1} · 1:${c.S.toLocaleString()} · ${c.paper}</span>${bar(barK,km+' km')}${bar(barN,nmL+' NM')}${nbs.length?`<span class="nb">ต่อ: ${nbs.join(' ')}</span>`:''}</div>`);
     return ok}));
   $('pInfo').textContent=`พร้อมพิมพ์ ${pages.length} แผ่น`;document.body.classList.add('prtmode');setTimeout(()=>window.print(),300)}
 addEventListener('afterprint',()=>{document.body.classList.remove('prtmode');prUpd()});
 // ---- init ----
 const qm=new URLSearchParams(location.search).get('map')||(window.CONFIG&&CONFIG.MAP_URL);
 if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.cfg.tms;$('kt').value=S.cfg.kt||90;$('var').value=S.cfg.v||0;$('mag').checked=!!S.cfg.mag;if(S.cfg.osm)$('tileUrl').value=OSM}
-if(S.pr){$('pS').value=S.pr.S;$('pP').value=S.pr.P;$('pO').value=S.pr.O;$('pOv').value=S.pr.ov;$('pM').value=S.pr.m}else if(/500k/i.test($('tileUrl').value))$('pS').value='500000';
+if(S.pr){$('pS').value=S.pr.S;$('pP').value=S.pr.P;$('pO').value=S.pr.O;$('pOv').value=S.pr.ov;$('pM').value=S.pr.m;$('pLb').checked=S.pr.lb!==false}else if(/500k/i.test($('tileUrl').value))$('pS').value='500000';
 $('shLbl').checked=S.ui.lbl;$('shBox').checked=S.ui.box;$('offl').checked=S.ui.off;
 if(!S.pts.length)S.pts=[{type:'PZ',name:'ท่าอากาศยานร้อยเอ็ด',lat:16.1168,lon:103.7741,alt:'1100'},{type:'CP2',name:'สนาม ฮ. พล.ร.6',lat:16.105,lon:103.545,alt:'1100'},{type:'LZ',name:'สนาม ฮ. รร.สารคามพิทยาคม',lat:16.184,lon:103.3,alt:''}];
 if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^https?:/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
