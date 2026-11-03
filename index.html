@@ -156,8 +156,8 @@ body{height:100dvh}
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
-  <div id="llBox" style="display:none"><div class="sm">Lat / Lon (เช่น 16.1168 หรือ N16 07.01)</div>
-   <div class="row"><input id="fLat" placeholder="Lat"><input id="fLon" placeholder="Lon"></div></div>
+  <div id="llBox" style="display:none"><div class="sm">Lat / Lon แบบ องศา ลิปดา.ทศนิยม (ไม่ต้องใส่ N/E) เช่น 16 07.01 / 103 46.45</div>
+   <div class="row"><input id="fLat" placeholder="16 07.01" inputmode="decimal"><input id="fLon" placeholder="103 46.45" inputmode="decimal"></div></div>
   <div class="row"><div><div class="sm">Type</div><input id="fType" list="types" placeholder="อัตโนมัติ"></div>
    <div><div class="sm">ALT ft</div><input id="fAlt" value="1100"></div></div>
   <datalist id="types"><option>PZ<option>CP<option>LZ<option>SP<option>RP</datalist>
@@ -394,14 +394,14 @@ function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').
 // ---- waypoint list (AirNavFlow style) ----
 function list(L_,tot,tmin){
   $('wpl').innerHTML=S.pts.map((p,i)=>{const l=L_[i-1];return `<li><div class="wr">
-   <div class="nm"><span class="num">${i+1}</span><div style="min-width:0"><b>${esc(p.type)} ${esc(p.name)}</b><div class="sub">${(+p.lat).toFixed(4)}, ${(+p.lon).toFixed(4)}</div></div></div>
+   <div class="nm"><span class="num">${i+1}</span><div style="min-width:0"><b>${esc(p.type)} ${esc(p.name)}</b><div class="sub">${ddm(p.lat)}, ${ddm(p.lon)}</div></div></div>
    <span class="v">${l?l.nm.toFixed(1):''}</span><span class="v">${l?esc(l.crsTxt)+'°':''}</span><span class="v">${l?hm(l.min):''}</span><span class="v">${esc(p.alt)}</span>
    <div class="btns"><button onclick="mv(${i},-1)" title="เลื่อนขึ้น">↑</button><button class="x" onclick="resetBox(${i}-1);S.pts.splice(${i},1);draw()" title="ลบ">✕</button>
     <button onclick="mv(${i},1)" title="เลื่อนลง">↓</button><button onclick="ins(${i})" title="แทรกจุดถัดไป">↓+</button>
     <button onclick="this.closest('li').querySelector('.ed').classList.toggle('on')" title="แก้ไข" style="grid-column:span 2">✎</button></div></div>
    <div class="ed"><input value="${esc(p.type)}" title="Type" onchange="S.pts[${i}].type=this.value;draw()"><input value="${esc(p.name)}" title="Name" onchange="S.pts[${i}].name=this.value;draw()" style="grid-column:span 2">
     <input value="${esc(p.alt)}" title="ALT" onchange="S.pts[${i}].alt=this.value;draw()"><span></span>
-    <input value="${p.lat}" title="Lat" onchange="setLL(${i},'lat',this.value)" style="grid-column:span 2"><input value="${p.lon}" title="Lon" onchange="setLL(${i},'lon',this.value)" style="grid-column:span 2"></div></li>`}).join('')
+    <input value="${ddm(p.lat)}" title="Lat (DD MM.mm)" inputmode="decimal" onchange="setLL(${i},'lat',this.value)" style="grid-column:span 2"><input value="${ddm(p.lon)}" title="Lon (DDD MM.mm)" inputmode="decimal" onchange="setLL(${i},'lon',this.value)" style="grid-column:span 2"></div></li>`}).join('')
     +(L_.length?`<li class="v" style="color:var(--au);font:bold 12px Consolas,monospace">TOTAL ${tot.toFixed(1)} NM · ${hm(tmin)}</li>`:'');
   profile(L_);$('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
@@ -426,8 +426,13 @@ function togSide(){const b=document.body.classList;
 function togTxt(){const b=document.body.classList;$('tog').textContent=isPh()?(b.contains('hide')?'▲ เมนู':b.contains('full')?'▼':'▲'):(b.contains('hide')?'▶':'◀')}
 addEventListener('resize',()=>{togTxt();map.invalidateSize()});
 // ---- add waypoint (On MAP / LAT-LONG) ----
+// degrees + decimal minutes; N/E assumed (Thailand). Accepts "16 07.01", "16°07.01'", "1607.01" / "10346.45",
+// also D M S ("16 07 01") and plain decimal degrees ("16.1168")
+function ddm(v){v=+v;const a=Math.abs(v);let d=Math.floor(a),m=+((a-d)*60).toFixed(2);if(m>=60){d++;m=0}return (v<0?'-':'')+d+' '+m.toFixed(2).padStart(5,'0')}
 function parseCoord(v){v=String(v).trim().toUpperCase();if(!v)return null;
-  const neg=/^[SW-]|[SW]$/.test(v);const n=v.replace(/[NSEW°'"]/g,' ').trim().split(/[\s,]+/).map(Number);
+  const neg=/^[SW-]|[SW]$/.test(v);let n=v.replace(/[NSEW°'"-]/g,' ').trim().split(/[\s,]+/).map(Number);
+  if(n.length===1&&n[0]>=1000){const d=Math.floor(n[0]/100);n=[d,n[0]-d*100]}
+  if(n.length>1&&(n[1]>=60||n[2]>=60))return null;
   if(n.some(isNaN)||!n.length)return null;const d=Math.abs(n[0])+(n[1]||0)/60+(n[2]||0)/3600;return +((neg?-1:1)*d).toFixed(6)}
 function autoType(){if(!S.pts.length)return 'PZ';return 'CP'+(Math.max(0,...S.pts.map(p=>+(/^CP(\d+)/i.exec(p.type)||[0,0])[1]))+1)}
 function addPt(lat,lon){const n=S.pts.length,at=n&&kind(S.pts[n-1].type)==='LZ'?n-1:n; // keep LZ last
