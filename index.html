@@ -98,7 +98,7 @@ fieldset>*:not(legend){clear:both}
   <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]);this.value=''">
   <button class="pri" onclick="imp.click()">Import (CSV/KML/KMZ/GPX)</button>
   <button onclick="exportKML()">Export KML</button>
-  <button onclick="undo()" title="Ctrl+Z">↶ ย้อนกลับ (Undo)</button>
+  <button onclick="undo()" title="Ctrl+Z">↶ Undo</button>
   <button onclick="reverseRoute()">⇄ กลับทิศเส้นทาง</button>
   <button onclick="if(confirm('ลบทุกจุด?')){S.pts=[];draw()}">ล้าง</button>
  </fieldset>
