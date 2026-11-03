@@ -189,7 +189,7 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
     const dash=(a.ln||S.ui.line)==='dash'?'10 8':null; // per-leg line style overrides the global one
     L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:4,opacity:.95,dashArray:dash}:{color:'#000',weight:3,dashArray:dash}).addTo(g);
-    if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
+    if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
     if(!$('shBox').checked)return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
     const mid=[(a.lat+b.lat)/2,(a.lon+b.lon)/2],half=Math.hypot(a.lat-b.lat,a.lon-b.lon)/2;
