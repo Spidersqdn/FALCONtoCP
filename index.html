@@ -354,7 +354,8 @@ function prPages(){const c=prCfg(),ll=[];
   const P=ll.map(x=>MERC.project(L.latLng(x))),xs=P.map(p=>p.x),ys=P.map(p=>p.y);
   // paper mm -> mercator m, using the lowest |lat| so every page is at least this big (overlap never < setting)
   const k=c.S/1000/Math.cos(Math.min(...ll.map(x=>Math.abs(x[0])))*Math.PI/180),pad=25*k;
-  const W=c.pw*k,H=c.ph*k,sx=(c.pw-c.ov)*k,sy=(c.ph-c.ov)*k;
+  // 0.6 mm spare: Leaflet rounds each map to whole pixels
+  const W=c.pw*k,H=c.ph*k,sx=(c.pw-c.ov-0.6)*k,sy=(c.ph-c.ov-0.6)*k;
   const x0=Math.min(...xs)-pad,x1=Math.max(...xs)+pad,y0=Math.min(...ys)-pad,y1=Math.max(...ys)+pad;
   const nc=Math.max(1,Math.ceil((x1-x0-W)/sx)+1),nr=Math.max(1,Math.ceil((y1-y0-H)/sy)+1);
   const ox=(x0+x1)/2-(W+(nc-1)*sx)/2,oy=(y0+y1)/2+(H+(nr-1)*sy)/2,pages=[];
