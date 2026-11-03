@@ -237,7 +237,7 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     const tbl=p.noTbl?'':`<table style="left:${p.tbx||0}px">${[0,1,2,3].map(r=>`<tr>${[0,1,2].map(c=>`<td>${cell(r*3+c)}</td>`).join('')}</tr>`).join('')}</table>`;
     if(!first&&!last)L.polyline([[p.lat,p.lon],p.lbl],{color:'#000',weight:2}).addTo(g); // no leader line for origin/destination
     const lb=L.marker(p.lbl,{draggable:!ro,interactive:!ro,icon:L.divIcon({className:'lbl',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%) scale(${p.lsc||S.ui.lsc||1})"><div class="t" style="left:${p.tdx||0}px;background:${p.lcol||col(p.type)}">${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}</div>${tbl}</div>`})}).addTo(g);
+      html:`<div style="transform:translate(-50%,-50%) scale(${p.lsc||S.ui.lsc||1})"><div class="t" style="background:${p.lcol||col(p.type)}">${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}</div>${tbl}</div>`})}).addTo(g);
     if(ro)return;
     lb.on('dragend',e=>{const q=e.target.getLatLng();p.loff=[q.lat-p.lat,q.lng-p.lon];draw()});
     lb.on('click',()=>editLbl(i));
@@ -273,13 +273,12 @@ function editLbl(i){const p=S.pts[i];
    <label>ข้อมูลตาราง (เว้นว่าง = ค่าอัตโนมัติ)</label><div class="g">${(p._auto||[]).map((v,k)=>`<input id="tv${k}" value="${esc((p.tv||[])[k])}" placeholder="${esc(v)}">`).join('')}</div>
    <label>ขนาดป้าย/ตาราง</label>${pctIn('lS',(p.lsc||S.ui.lsc||1)*100,`S.pts[${i}].lsc=this.value/100;draw()`)}
    <label>ขนาดสัญลักษณ์จุด</label>${pctIn('mS',(p.msc||S.ui.msc||1)*100,`S.pts[${i}].msc=this.value/100;draw()`)}
-   <label>เลื่อนหัวชื่อ ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tdx||0}" oninput="S.pts[${i}].tdx=+this.value;draw()">
    <label>เลื่อนตาราง ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tbx||0}" oninput="S.pts[${i}].tbx=+this.value;draw()">
    <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
-   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','msc','tdx','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
+   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','msc','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
 function delPt(i){const p=S.pts[i];if(!confirm('ลบจุด '+(p.type+' '+p.name).trim()+' ? (กด Undo เพื่อย้อนได้)'))return;resetBox(i-1);S.pts.splice(i,1);closeEd();draw()}
 function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
-  if($('lAll').checked){S.ui.lsc=p.lsc;S.ui.msc=p.msc;S.pts.forEach(q=>{delete q.lsc;delete q.msc;q.tdx=p.tdx;q.tbx=p.tbx})}closeEd();draw()}
+  if($('lAll').checked){S.ui.lsc=p.lsc;S.ui.msc=p.msc;S.pts.forEach(q=>{delete q.lsc;delete q.msc;q.tbx=p.tbx})}closeEd();draw()}
 // ---- waypoint list (AirNavFlow style) ----
 function list(L_,tot,tmin){
   $('wpl').innerHTML=S.pts.map((p,i)=>{const l=L_[i-1];return `<li><div class="wr">
