@@ -102,6 +102,7 @@ fieldset>*:not(legend){clear:both}
   GS <input id="kt" class="s" type="number" value="90"> kt &nbsp; VAR <input id="var" class="s" type="number" step="0.1" value="0"> (E=+)
   <label><input type="checkbox" id="mag"> แสดงเป็น MH</label>
   <div class="sm">เวลารวม = NM/GS + 5 นาที ปัดเป็น :x0/:x5 · ส่วนที่เพิ่ม ½ ใส่ขาสุดท้าย ½ เฉลี่ยตามระยะ</div>
+  <div class="sm">ALT ใน leg box = พื้นสูงสุดตามแนวขา ปัดขึ้นหลักร้อย + 500 ft (ต้องออนไลน์ครั้งแรก)</div>
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
@@ -179,7 +180,7 @@ function legs(){const kt=+$('kt').value||90,v=+$('var').value||0;
   const L_=S.pts.slice(1).map((b,i)=>{const a=S.pts[i],c=legCalc(a,b),o=a.ov||{};
     const crs=$('mag').checked?(c.tc-v+360)%360:c.tc;
     const nm=has(o.nm)&&!isNaN(+o.nm)?+o.nm:c.nm,min=parseT(o.t)??nm/kt*60;
-    return {tc:c.tc,nm,min,man:parseT(o.t)!==null,crsTxt:has(o.crs)?o.crs:pad3(crs),crsNum:has(o.crs)&&!isNaN(+o.crs)?+o.crs:crs,alt:a.alt,o}});
+    return {tc:c.tc,nm,min,man:parseT(o.t)!==null,crsTxt:has(o.crs)?o.crs:pad3(crs),crsNum:has(o.crs)&&!isNaN(+o.crs)?+o.crs:crs,alt:legAlt(a,b,o),o}});
   return timeRule(L_);}
 // time rule: total = NM/GS + 5 min, rounded to nearest :x0/:x5. The extra over raw time:
 // half goes to the last leg, the other half is spread over the legs by distance. Legs then rounded to whole
@@ -206,7 +207,21 @@ function snap(){const j=JSON.stringify(S.pts,(k,v)=>k==='_auto'?undefined:v);if(
   if(lastSnap!==null&&!undoing){const now=Date.now();if(now-lastT>400||!HIST.length)HIST.push(lastSnap);lastT=now;if(HIST.length>100)HIST.shift()}
   lastSnap=j}
 function undo(){if(!HIST.length)return;undoing=true;S.pts=JSON.parse(HIST.pop());closeEd();draw();undoing=false}
-function draw(){snap();grp.clearLayers();const r=render(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd()}
+function draw(){snap();grp.clearLayers();const r=render(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain()}
+// ---- leg ALT from terrain: highest ground along the leg (AWS Terrarium DEM, z12 ~30 m), round up to 100 ft, + 500 ft ----
+const ELV={},ELP={},DEM={};const ekey=(a,b)=>[a.lat,a.lon,b.lat,b.lon].join(',');
+function autoAlt(a,b){const f=b&&ELV[ekey(a,b)];return f==null?null:String(Math.ceil(f/100)*100+500)}
+function legAlt(a,b,o){return has(o.alt)?o.alt:autoAlt(a,b)??a.alt}
+function demTile(z,x,y){const k=z+'/'+x+'/'+y;return DEM[k]||(DEM[k]=fetch('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/'+k+'.png').then(r=>{if(!r.ok)throw 0;return r.blob()}).then(createImageBitmap)
+  .then(bm=>{const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.drawImage(bm,0,0);return g.getImageData(0,0,256,256).data}).catch(()=>{delete DEM[k];return null}))}
+async function legMaxFt(a,b){const z=12,n=2**z,m=Math.max(2,Math.ceil(legCalc(a,b).nm*1852/60));let mx=-1e9,ok=0;
+  for(let j=0;j<=m;j++){const la=a.lat+(b.lat-a.lat)*j/m,lo=a.lon+(b.lon-a.lon)*j/m,r=la*Math.PI/180;
+    const fx=(lo+180)/360*n,fy=(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n,tx=Math.floor(fx),ty=Math.floor(fy);
+    const d=await demTile(z,tx,ty);if(!d)continue;const i=(Math.floor((fy-ty)*256)*256+Math.floor((fx-tx)*256))*4;
+    mx=Math.max(mx,d[i]*256+d[i+1]+d[i+2]/256-32768);ok=1}
+  return ok?Math.max(0,mx)*3.28084:null}
+function terrain(){S.pts.slice(1).forEach((b,i)=>{const a=S.pts[i],k=ekey(a,b);if(k in ELV||ELP[k])return;ELP[k]=1;
+  legMaxFt(a,b).then(f=>{delete ELP[k];if(f==null)return;ELV[k]=f;draw()})})}
 // draw route layers into group g; ro=read-only (print pages)
 function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
   const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
@@ -225,7 +240,7 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     const bo=Object.assign({h:true,t:true,r:true},a.bx||{});
     // heading sits inside the head triangle, reciprocal inside the tail triangle (as cells if a triangle is off)
     const hd=l.crsTxt,rc=bo.r?pad3(l.crsNum+180):null;
-    const vals=[...(bo.h?[]:[hd]),Math.round(l.nm*10)/10+' NM',hm(l.min),has(a.alt)?a.alt+"'":'-',...(rc&&!bo.t?[rc]:[])];
+    const vals=[...(bo.h?[]:[hd]),Math.round(l.nm*10)/10+' NM',hm(l.min),has(l.alt)?l.alt+"'":'-',...(rc&&!bo.t?[rc]:[])];
     const cells=vals.map((t,k)=>`<div class="c${k===0&&!bo.h?' f':''}${k===vals.length-1&&bo.t?' l':''}" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
     const tipLen=Math.max(String(hd).length,rc?rc.length:0);
     const h=Math.max(44,Math.max(...vals.map(v=>String(v).length))*7.5+12,(bo.h||bo.t)?(tipLen*7.5+12)/0.62:0),sc=a.bsc||S.ui.bsc||1;
@@ -268,14 +283,14 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
    <label>HDG/CRS</label><input id="eC" value="${esc(o.crs)}" placeholder="${pad3(l.tc)}">
    <label>NM</label><input id="eN" value="${esc(o.nm)}" placeholder="${l.nm.toFixed(1)}">
    <label>เวลา (H:MM หรือ นาที)</label><input id="eT" value="${esc(o.t)}" placeholder="${hm(l.min)}">
-   <label>ALT ft</label><input id="eA" value="${esc(a.alt)}">
+   <label>ALT ft (ว่าง = อัตโนมัติจากภูมิประเทศ)</label><input id="eA" value="${esc(o.alt)}" placeholder="${esc(autoAlt(a,S.pts[i+1])??a.alt??'')}">
    <label>สีกรอบ</label><input id="eK" type="color" value="${o.col||'#1F4E79'}">
    ${(b=>`<label style="color:#333"><input type="checkbox" id="bH" ${b.h?'checked':''} style="width:auto"> สามเหลี่ยมหัว</label><label style="color:#333"><input type="checkbox" id="bT" ${b.t?'checked':''} style="width:auto"> สามเหลี่ยมท้าย</label><label style="color:#333"><input type="checkbox" id="bR" ${b.r?'checked':''} style="width:auto"> แสดงทิศกลับ (${pad3(l.crsNum+180)})</label>`)(Object.assign({h:true,t:true,r:true},a.bx||{}))}
    <label>เส้น leg นี้</label><select id="eLn" onchange="S.pts[${i}].ln=this.value;draw()" style="width:100%"><option value="">ตามค่าหลัก</option><option value="solid" ${a.ln==='solid'?'selected':''}>เส้นทึบ</option><option value="dash" ${a.ln==='dash'?'selected':''}>เส้นประ</option></select>
    <label>ขนาดกล่อง</label>${pctIn('bS',(a.bsc||S.ui.bsc||1)*100,`S.pts[${i}].bsc=this.value/100;draw()`)}
    <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบ/ขนาดกล่องนี้กับทุก leg</label>
    <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};closeEd();draw()">คืนค่าอัตโนมัติ</button>`)}
-function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.pts.forEach(p=>{p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),col:$('eK').value};a.alt=$('eA').value.trim();closeEd();draw()}
+function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.pts.forEach(p=>{p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),alt:$('eA').value.trim(),col:$('eK').value};closeEd();draw()}
 function editLbl(i){const p=S.pts[i];
   popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
    <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(p.ltxt)}" placeholder="${esc(p.type+' '+p.name)}">
@@ -302,7 +317,7 @@ function list(L_,tot,tmin){
     <input value="${esc(p.alt)}" title="ALT" onchange="S.pts[${i}].alt=this.value;draw()"><span></span>
     <input value="${p.lat}" title="Lat" onchange="setLL(${i},'lat',this.value)" style="grid-column:span 2"><input value="${p.lon}" title="Lon" onchange="setLL(${i},'lon',this.value)" style="grid-column:span 2"></div></li>`}).join('')
     +(L_.length?`<li class="v" style="color:var(--au);font:bold 12px Consolas,monospace">TOTAL ${tot.toFixed(1)} NM · ${hm(tmin)}</li>`:'');
-  const alts=S.pts.map(p=>parseFloat(p.alt)).filter(x=>!isNaN(x));
+  const alts=L_.map(l=>parseFloat(l.alt)).filter(x=>!isNaN(x));
   $('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;$('stA').textContent=alts.length?Math.max(...alts)+' ft':'-';}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
 function reverseRoute(){const n=S.pts.length;if(n<2)return;
@@ -363,7 +378,7 @@ function dl(name,txt,type){const a=document.createElement('a');a.href=URL.create
 function exportCSV(){dl('route.csv','type,name,lat,lon,alt_ft\n'+S.pts.map(p=>[p.type,p.name,p.lat,p.lon,p.alt].join(',')).join('\n'),'text/csv')}
 function exportKML(){const L_=legs();
   const pm=S.pts.map(p=>`<Placemark><name>${esc(p.type+' '+p.name)}</name><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`).join('');
-  const ln=L_.map((l,i)=>`<Placemark><name>Leg ${i+1} ${l.crsTxt} ${Math.round(l.nm)}NM ${hm(l.min)} ${S.pts[i].alt||''}</name><Style><LineStyle><color>ff000000</color><width>3</width></LineStyle></Style><LineString><tessellate>1</tessellate><coordinates>${S.pts[i].lon},${S.pts[i].lat},0 ${S.pts[i+1].lon},${S.pts[i+1].lat},0</coordinates></LineString></Placemark>`).join('');
+  const ln=L_.map((l,i)=>`<Placemark><name>Leg ${i+1} ${l.crsTxt} ${Math.round(l.nm)}NM ${hm(l.min)} ${l.alt||''}</name><Style><LineStyle><color>ff000000</color><width>3</width></LineStyle></Style><LineString><tessellate>1</tessellate><coordinates>${S.pts[i].lon},${S.pts[i].lat},0 ${S.pts[i+1].lon},${S.pts[i+1].lat},0</coordinates></LineString></Placemark>`).join('');
   dl('route.kml',`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Route</name>${pm}${ln}</Document></kml>`,'application/vnd.google-earth.kml+xml')}
 // ---- Export Map: tiles of paper at true scale (print / save as PDF) ----
 const PAPER={A4:[210,297],A3:[297,420]},MERC=L.CRS.EPSG3857,M0=2*Math.PI*6378137/256; // m/px at z0, equator
