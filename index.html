@@ -65,6 +65,8 @@ fieldset>*:not(legend){clear:both}
 .ed{display:none;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px}.ed.on{display:grid}.ed input{width:100%;padding:4px}
 .mk{width:24px;height:24px;border-radius:50%;background:var(--au);border:2px solid #1b1d20;color:#1b1d20;font:bold 12px Consolas,monospace;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0008}
 .pill{background:#1b1d20e6;color:var(--au);border:1px solid var(--au);border-radius:3px;font:bold 11px Consolas,monospace;padding:1px 5px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
+#edp{display:none;position:fixed;top:12px;right:12px;width:270px;max-height:calc(100vh - 24px);overflow:auto;background:#fff;color:#222;border-radius:8px;box-shadow:0 4px 18px #0007;padding:10px 12px;z-index:1000;font-size:12px}
+#edp.lft{right:auto;left:calc(clamp(320px,25vw,560px) + 12px)}.edh{display:flex;justify-content:flex-end;gap:4px;margin:-4px -4px 2px}.edh button{background:#eee!important;color:#333!important;border:0;padding:2px 8px}
 .pop input{width:100%;margin:2px 0 6px;padding:4px}.pop label{display:block;color:#333;font-size:11px}.pop button{margin-right:4px;color:#fff}
 .box,.lbl{cursor:pointer}
 </style></head><body>
@@ -127,6 +129,7 @@ fieldset>*:not(legend){clear:both}
  <p class="hint">On MAP: คลิกแผนที่เพื่อเพิ่มจุด · ลากจุด/ป้าย/กล่องได้ · คลิกกล่อง/ป้ายเพื่อแก้ค่า. ข้อมูลบันทึกในเบราว์เซอร์อัตโนมัติ</p>
 </div>
 <div id="map"></div>
+<div id="edp"></div>
 <div id="prt"></div>
 <script>
 const COL={PZ:'#FF66CC',CP:'#22BB33',LZ:'#FFD700'};
@@ -174,7 +177,7 @@ const HIST=[];let lastSnap=null,lastT=0,undoing=false;
 function snap(){const j=JSON.stringify(S.pts,(k,v)=>k==='_auto'?undefined:v);if(j===lastSnap)return;
   if(lastSnap!==null&&!undoing){const now=Date.now();if(now-lastT>400||!HIST.length)HIST.push(lastSnap);lastT=now;if(HIST.length>100)HIST.shift()}
   lastSnap=j}
-function undo(){if(!HIST.length)return;undoing=true;S.pts=JSON.parse(HIST.pop());map.closePopup();draw();undoing=false}
+function undo(){if(!HIST.length)return;undoing=true;S.pts=JSON.parse(HIST.pop());closeEd();draw();undoing=false}
 function draw(){snap();grp.clearLayers();const r=render(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd()}
 // draw route layers into group g; ro=read-only (print pages)
 function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
@@ -229,7 +232,9 @@ function tipSvg(h,c,tail,txt){const w=Math.round(h*0.75),m=h/2,x0=1.5,x1=w-1.5;
   return `<svg width="${w}" height="${h}"><polygon points="${p}" fill="#fff" stroke="${c}" stroke-width="3" stroke-linejoin="miter"/>${t}</svg>`}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 // ---- editable leg box / label (popup forms) ----
-function popForm(ll,html){L.popup({className:'pop',minWidth:220,maxHeight:440}).setLatLng(ll).setContent(`<div class="pop">${html}</div>`).openOn(map)}
+// edit form lives in a floating panel at the map edge, so it never covers the label/box being adjusted
+function popForm(ll,html){const e=$('edp');e.innerHTML=`<div class="pop"><div class="edh"><button title="ย้ายไปอีกด้าน" onclick="$('edp').classList.toggle('lft')">⇆</button><button title="ปิด" onclick="closeEd()">✕</button></div>${html}</div>`;e.style.display='block'}
+function closeEd(){const e=$('edp');if(e){e.style.display='none';e.innerHTML=''}}
 function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
   popForm(ll,`<b>Leg ${i+1}: ${esc(a.type)} → ${esc(S.pts[i+1].type)}</b><br><small>เว้นว่าง = คำนวณอัตโนมัติ</small>
    <label>HDG/CRS</label><input id="eC" value="${esc(o.crs)}" placeholder="${pad3(l.tc)}">
@@ -241,8 +246,8 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
    <label>เส้น leg นี้</label><select id="eLn" onchange="S.pts[${i}].ln=this.value;draw()" style="width:100%"><option value="">ตามค่าหลัก</option><option value="solid" ${a.ln==='solid'?'selected':''}>เส้นทึบ</option><option value="dash" ${a.ln==='dash'?'selected':''}>เส้นประ</option></select>
    <label>ขนาดกล่อง <span id="bSv">${Math.round((a.bsc||S.ui.bsc||1)*100)}%</span></label><input id="bS" type="range" min="40" max="300" step="5" value="${Math.round((a.bsc||S.ui.bsc||1)*100)}" oninput="S.pts[${i}].bsc=this.value/100;$('bSv').textContent=this.value+'%';draw()">
    <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบ/ขนาดกล่องนี้กับทุก leg</label>
-   <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};map.closePopup();draw()">คืนค่าอัตโนมัติ</button>`)}
-function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.pts.forEach(p=>{p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),col:$('eK').value};a.alt=$('eA').value.trim();map.closePopup();draw()}
+   <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};closeEd();draw()">คืนค่าอัตโนมัติ</button>`)}
+function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.pts.forEach(p=>{p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),col:$('eK').value};a.alt=$('eA').value.trim();closeEd();draw()}
 function editLbl(i){const p=S.pts[i];
   popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
    <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(p.ltxt)}" placeholder="${esc(p.type+' '+p.name)}">
@@ -253,9 +258,10 @@ function editLbl(i){const p=S.pts[i];
    <label>เลื่อนหัวชื่อ ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tdx||0}" oninput="S.pts[${i}].tdx=+this.value;draw()">
    <label>เลื่อนตาราง ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tbx||0}" oninput="S.pts[${i}].tbx=+this.value;draw()">
    <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
-   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','tdx','tbx'].forEach(k=>delete S.pts[${i}][k]);map.closePopup();draw()">คืนค่าเดิม</button>`)}
+   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','tdx','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
+function delPt(i){const p=S.pts[i];if(!confirm('ลบจุด '+(p.type+' '+p.name).trim()+' ? (กด Undo เพื่อย้อนได้)'))return;resetBox(i-1);S.pts.splice(i,1);closeEd();draw()}
 function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
-  if($('lAll').checked){S.ui.lsc=p.lsc;S.pts.forEach(q=>{delete q.lsc;q.tdx=p.tdx;q.tbx=p.tbx})}map.closePopup();draw()}
+  if($('lAll').checked){S.ui.lsc=p.lsc;S.pts.forEach(q=>{delete q.lsc;q.tdx=p.tdx;q.tbx=p.tbx})}closeEd();draw()}
 // ---- waypoint list (AirNavFlow style) ----
 function list(L_,tot,tmin){
   $('wpl').innerHTML=S.pts.map((p,i)=>{const l=L_[i-1];return `<li><div class="wr">
@@ -296,7 +302,7 @@ function setMode(m){S.ui.mode=m;$('mOn').classList.toggle('on',m==='map');$('mLL
   $('modeHint').textContent=m==='map'?'คลิกบนแผนที่เพื่อเพิ่มจุดด้วยค่าในฟอร์มนี้':'กรอกพิกัดแล้วกด Add ROUTE';
   map.getContainer().style.cursor=m==='map'?'crosshair':'';save()}
 function setStyle(s,user){S.ui.style=s;if(user){S.ui.line=s==='anf'?'solid':'dash'}$('lineSt').value=S.ui.line;$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
-map.on('click',e=>{if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
+map.on('click',e=>{if($('edp').style.display==='block'){closeEd();return}if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
 ['kt','var','mag'].forEach(id=>$(id).onchange=draw);
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();undo()}if(e.key==='Escape'){document.body.classList.remove('hide');map.invalidateSize()}});
 // ---- offline cache (service worker) ----
