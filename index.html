@@ -27,15 +27,16 @@ table.wp button{padding:2px 6px;color:var(--cy)}table.wp button+button{color:#ff
 .lbl{pointer-events:auto;color:#000}.box{color:#000}
 fieldset label{display:block;margin:4px 0}
 .lbl .t{border:2px solid #000;padding:3px 10px;font-size:14px;white-space:nowrap;text-align:center;box-shadow:1px 1px 3px #0006}
-.lbl table{border-collapse:collapse;background:#fff;margin:2px auto 0;font-size:11px}
+.lbl table{border-collapse:collapse;background:#fff;margin:2px auto 0;font-size:11px;position:relative}.lbl .t{position:relative;display:table;margin:0 auto}
+.pop .g{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}.pop .g input{margin:0}.pop input[type=range]{padding:0}
 .lbl td{border:1px solid #000;padding:1px 6px;text-align:center;min-width:42px}
-.box{display:flex;align-items:stretch;height:44px;filter:drop-shadow(1px 1px 2px #0006)}
-.box .tip{width:0;height:0;border-top:22px solid transparent;border-bottom:22px solid transparent;border-right:20px solid var(--bd);position:relative}
-.box .tip:after{content:"";position:absolute;left:4px;top:-17px;border-top:17px solid transparent;border-bottom:17px solid transparent;border-right:15px solid #fff}
+.box{--h:44px;display:flex;align-items:stretch;height:var(--h);filter:drop-shadow(1px 1px 2px #0006)}
+.box .tip{width:0;height:0;border-top:calc(var(--h)/2) solid transparent;border-bottom:calc(var(--h)/2) solid transparent;border-right:20px solid var(--bd);position:relative}
+.box .tip:after{content:"";position:absolute;left:4px;top:calc(5px - var(--h)/2);border-top:calc(var(--h)/2 - 5px) solid transparent;border-bottom:calc(var(--h)/2 - 5px) solid transparent;border-right:15px solid #fff}
 .box .c{width:30px;border:3px solid var(--bd);border-left-width:0;background:#fff;display:flex;align-items:center;justify-content:center}
 .box .c.f{border-left-width:3px}.box .c.r{background:#eef3f8}
-.box .tip2{width:0;height:0;border-top:22px solid transparent;border-bottom:22px solid transparent;border-left:20px solid var(--bd);position:relative}
-.box .tip2:after{content:"";position:absolute;left:-19px;top:-17px;border-top:17px solid transparent;border-bottom:17px solid transparent;border-left:15px solid #fff}
+.box .tip2{width:0;height:0;border-top:calc(var(--h)/2) solid transparent;border-bottom:calc(var(--h)/2) solid transparent;border-left:20px solid var(--bd);position:relative}
+.box .tip2:after{content:"";position:absolute;left:-19px;top:calc(5px - var(--h)/2);border-top:calc(var(--h)/2 - 5px) solid transparent;border-bottom:calc(var(--h)/2 - 5px) solid transparent;border-left:15px solid #fff}
 .box .c span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;white-space:nowrap}
 .hint{color:var(--mu);font-size:12px;padding:0 14px 14px}
 #side>button{margin:12px 14px 8px;width:calc(100% - 28px)}
@@ -86,7 +87,8 @@ fieldset>*:not(legend){clear:both}
   <div class="row" style="margin-top:8px"><button class="pri" onclick="addFromForm()">Add ROUTE</button></div>
   <div class="sm" id="modeHint"></div>
   <div class="sm" style="margin-top:10px">รูปแบบเส้นทาง</div>
-  <div class="seg"><button id="sA" onclick="setStyle('anf')">AirNavFlow</button><button id="sC" onclick="setStyle('cp')">แผนที่ CP</button></div>
+  <div class="seg"><button id="sA" onclick="setStyle('anf',1)">AirNavFlow</button><button id="sC" onclick="setStyle('cp',1)">แผนที่ CP</button></div>
+  <div class="row"><span class="sm" style="flex:none">เส้นทาง</span><select id="lineSt" onchange="S.ui.line=this.value;draw()"><option value="solid">เส้นทึบ</option><option value="dash">เส้นประ</option></select></div>
   <label><input type="checkbox" id="shLbl" checked onchange="draw()"> แสดงป้ายจุด + ตาราง TOTAL/ACTUAL/REMAIN</label>
   <label><input type="checkbox" id="shBox" checked onchange="draw()"> แสดงกล่องข้อมูล leg (คลิกกล่องเพื่อแก้ไข)</label>
   <div class="wh" style="margin-top:8px"><span>Waypoint</span><span style="text-align:right">Dist</span><span style="text-align:right">CRS</span><span style="text-align:right">ETE</span><span style="text-align:right">ALT</span><span></span></div>
@@ -108,7 +110,7 @@ const COL={PZ:'#FF66CC',CP:'#22BB33',LZ:'#FFD700'};
 const OSM='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const $=id=>document.getElementById(id);
 let S={pts:[]};try{S=JSON.parse(localStorage.getItem('routeS'))||S}catch(e){}
-S.ui=Object.assign({mode:'map',style:'anf',lbl:true,box:true,off:true},S.ui||{});
+S.ui=Object.assign({mode:'map',style:'anf',line:'solid',lbl:true,box:true,off:true},S.ui||{});
 const map=L.map('map',{zoomSnap:0.25}).setView([16.12,103.55],11);
 let base=null;
 function pmLayer(u){const p=new pmtiles.PMTiles(u),l=pmtiles.leafletRasterLayer(p,{maxZoom:18,maxNativeZoom:12});
@@ -148,7 +150,8 @@ function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style=
   const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
-    L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:4,opacity:.95}:{color:'#000',weight:3,dashArray:'10 8'}).addTo(grp);
+    const dash=(a.ln||S.ui.line)==='dash'?'10 8':null; // per-leg line style overrides the global one
+    L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:4,opacity:.95,dashArray:dash}:{color:'#000',weight:3,dashArray:dash}).addTo(grp);
     if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${+l.nm.toFixed(1)} NM</span>`})}).addTo(grp);
     if(!$('shBox').checked)return;
     if(!a.box)a.box=[(a.lat+b.lat)/2-0.04,(a.lon+b.lon)/2];
@@ -156,8 +159,9 @@ function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style=
     const bo=Object.assign({h:true,t:true,r:true},a.bx||{});
     const vals=[l.crsTxt,Math.round(l.nm*10)/10+' NM',hm(l.min),has(a.alt)?a.alt+"'":'-'];if(bo.r)vals.push(pad3(l.crsNum+180));
     const cells=vals.map((t,k)=>`<div class="c${k===0&&!bo.h?' f':''}${bo.r&&k===4?' r':''}" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
+    const h=Math.max(44,Math.max(...vals.map(v=>String(v).length))*7.5+12),sc=a.bsc||S.ui.bsc||1;
     const bx=L.marker(a.box,{draggable:true,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg)"><div class="box" style="--bd:${bc}">${bo.h?'<div class="tip"></div>':''}${cells}${bo.t?'<div class="tip2"></div>':''}</div></div>`})}).addTo(grp);
+      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg) scale(${sc})"><div class="box" style="--bd:${bc};--h:${h}px">${bo.h?'<div class="tip"></div>':''}${cells}${bo.t?'<div class="tip2"></div>':''}</div></div>`})}).addTo(grp);
     bx.on('dragend',e=>{const q=e.target.getLatLng();a.box=[q.lat,q.lng];draw()});
     bx.on('click',()=>editBox(i,a.box));
   });
@@ -168,20 +172,19 @@ function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style=
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()});
     if(!$('shLbl').checked)return;
     if(!p.lbl)p.lbl=[p.lat+0.05,p.lon];
-    const tbl=p.noTbl?'':`<table><tr><td></td><td>NM</td><td>MIN</td></tr>
-      <tr><td>TOTAL</td><td>${Math.round(tot)}</td><td>${hm(tmin)}</td></tr>
-      <tr><td>ACTUAL</td><td>${first?'-':Math.round(cn)}</td><td>${first?'-':hm(cm)}</td></tr>
-      <tr><td>REMAIN</td><td>${last?'-':Math.round(tot-cn)}</td><td>${last?'-':hm(tmin-cm)}</td></tr></table>`;
+    const auto=['','NM','MIN','TOTAL',Math.round(tot),hm(tmin),'ACTUAL',first?'-':Math.round(cn),first?'-':hm(cm),'REMAIN',last?'-':Math.round(tot-cn),last?'-':hm(tmin-cm)];
+    p._auto=auto;const tv=p.tv||[],cell=k=>esc(has(tv[k])?tv[k]:auto[k]);
+    const tbl=p.noTbl?'':`<table style="left:${p.tbx||0}px">${[0,1,2,3].map(r=>`<tr>${[0,1,2].map(c=>`<td>${cell(r*3+c)}</td>`).join('')}</tr>`).join('')}</table>`;
     if(!first&&!last)L.polyline([[p.lat,p.lon],p.lbl],{color:'#000',weight:2}).addTo(grp); // no leader line for origin/destination
     const lb=L.marker(p.lbl,{draggable:true,icon:L.divIcon({className:'lbl',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%)"><div class="t" style="background:${p.lcol||col(p.type)}">${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}</div>${tbl}</div>`})}).addTo(grp);
+      html:`<div style="transform:translate(-50%,-50%) scale(${p.lsc||S.ui.lsc||1})"><div class="t" style="left:${p.tdx||0}px;background:${p.lcol||col(p.type)}">${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}</div>${tbl}</div>`})}).addTo(grp);
     lb.on('dragend',e=>{const q=e.target.getLatLng();p.lbl=[q.lat,q.lng];draw()});
     lb.on('click',()=>editLbl(i));
   });
   list(L_,tot,tmin);save();}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 // ---- editable leg box / label (popup forms) ----
-function popForm(ll,html){L.popup({className:'pop',minWidth:200}).setLatLng(ll).setContent(`<div class="pop">${html}</div>`).openOn(map)}
+function popForm(ll,html){L.popup({className:'pop',minWidth:220,maxHeight:440}).setLatLng(ll).setContent(`<div class="pop">${html}</div>`).openOn(map)}
 function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
   popForm(ll,`<b>Leg ${i+1}: ${esc(a.type)} → ${esc(S.pts[i+1].type)}</b><br><small>เว้นว่าง = คำนวณอัตโนมัติ</small>
    <label>HDG/CRS</label><input id="eC" value="${esc(o.crs)}" placeholder="${pad3(l.tc)}">
@@ -190,16 +193,24 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
    <label>ALT ft</label><input id="eA" value="${esc(a.alt)}">
    <label>สีกรอบ</label><input id="eK" type="color" value="${o.col||'#1F4E79'}">
    ${(b=>`<label style="color:#333"><input type="checkbox" id="bH" ${b.h?'checked':''} style="width:auto"> สามเหลี่ยมหัว</label><label style="color:#333"><input type="checkbox" id="bT" ${b.t?'checked':''} style="width:auto"> สามเหลี่ยมท้าย</label><label style="color:#333"><input type="checkbox" id="bR" ${b.r?'checked':''} style="width:auto"> แสดงทิศกลับ (${pad3(l.crsNum+180)})</label>`)(Object.assign({h:true,t:true,r:true},a.bx||{}))}
-   <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบกล่องนี้กับทุก leg</label>
+   <label>เส้น leg นี้</label><select id="eLn" onchange="S.pts[${i}].ln=this.value;draw()" style="width:100%"><option value="">ตามค่าหลัก</option><option value="solid" ${a.ln==='solid'?'selected':''}>เส้นทึบ</option><option value="dash" ${a.ln==='dash'?'selected':''}>เส้นประ</option></select>
+   <label>ขนาดกล่อง <span id="bSv">${Math.round((a.bsc||S.ui.bsc||1)*100)}%</span></label><input id="bS" type="range" min="40" max="300" step="5" value="${Math.round((a.bsc||S.ui.bsc||1)*100)}" oninput="S.pts[${i}].bsc=this.value/100;$('bSv').textContent=this.value+'%';draw()">
+   <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบ/ขนาดกล่องนี้กับทุก leg</label>
    <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};map.closePopup();draw()">คืนค่าอัตโนมัติ</button>`)}
-function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked)S.pts.forEach(p=>{p.bx={...bx};if(p.ov)p.ov.col=$('eK').value});a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),col:$('eK').value};a.alt=$('eA').value.trim();map.closePopup();draw()}
+function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.pts.forEach(p=>{p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),col:$('eK').value};a.alt=$('eA').value.trim();map.closePopup();draw()}
 function editLbl(i){const p=S.pts[i];
   popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
    <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(p.ltxt)}" placeholder="${esc(p.type+' '+p.name)}">
    <label>สีพื้น</label><input id="eK" type="color" value="${p.lcol||col(p.type)}">
    <label style="color:#333"><input type="checkbox" id="eH" ${p.noTbl?'checked':''} style="width:auto"> ซ่อนตาราง TOTAL/ACTUAL/REMAIN</label>
-   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="delete S.pts[${i}].ltxt;delete S.pts[${i}].lcol;delete S.pts[${i}].noTbl;map.closePopup();draw()">คืนค่าเดิม</button>`)}
-function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;p.noTbl=$('eH').checked;map.closePopup();draw()}
+   <label>ข้อมูลตาราง (เว้นว่าง = ค่าอัตโนมัติ)</label><div class="g">${(p._auto||[]).map((v,k)=>`<input id="tv${k}" value="${esc((p.tv||[])[k])}" placeholder="${esc(v)}">`).join('')}</div>
+   <label>ขนาด <span id="lSv">${Math.round((p.lsc||S.ui.lsc||1)*100)}%</span></label><input id="lS" type="range" min="40" max="300" step="5" value="${Math.round((p.lsc||S.ui.lsc||1)*100)}" oninput="S.pts[${i}].lsc=this.value/100;$('lSv').textContent=this.value+'%';draw()">
+   <label>เลื่อนหัวชื่อ ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tdx||0}" oninput="S.pts[${i}].tdx=+this.value;draw()">
+   <label>เลื่อนตาราง ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tbx||0}" oninput="S.pts[${i}].tbx=+this.value;draw()">
+   <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
+   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','tdx','tbx'].forEach(k=>delete S.pts[${i}][k]);map.closePopup();draw()">คืนค่าเดิม</button>`)}
+function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
+  if($('lAll').checked){S.ui.lsc=p.lsc;S.pts.forEach(q=>{delete q.lsc;q.tdx=p.tdx;q.tbx=p.tbx})}map.closePopup();draw()}
 // ---- waypoint list (AirNavFlow style) ----
 function list(L_,tot,tmin){
   $('wpl').innerHTML=S.pts.map((p,i)=>{const l=L_[i-1];return `<li><div class="wr">
@@ -238,7 +249,7 @@ function addFromForm(){if(S.ui.mode==='map')return alert('โหมด On MAP: �
 function setMode(m){S.ui.mode=m;$('mOn').classList.toggle('on',m==='map');$('mLL').classList.toggle('on',m==='ll');$('llBox').style.display=m==='ll'?'':'none';
   $('modeHint').textContent=m==='map'?'คลิกบนแผนที่เพื่อเพิ่มจุดด้วยค่าในฟอร์มนี้':'กรอกพิกัดแล้วกด Add ROUTE';
   map.getContainer().style.cursor=m==='map'?'crosshair':'';save()}
-function setStyle(s){S.ui.style=s;$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
+function setStyle(s,user){S.ui.style=s;if(user){S.ui.line=s==='anf'?'solid':'dash'}$('lineSt').value=S.ui.line;$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
 map.on('click',e=>{if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
 ['kt','var','mag'].forEach(id=>$(id).onchange=draw);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.body.classList.remove('hide');map.invalidateSize()}});
