@@ -1,4 +1,4 @@
-# FALCONtoCP – Mission Route Map
+# FalCon2CP – Mission Route Map
 
 เว็บวาดเส้นทางบิน PZ / CP / LZ บนแผนที่ FalconView (CADRG) พร้อมกล่อง HDG / NM / เวลา / ความสูง
 และตาราง TOTAL / ACTUAL / REMAIN
