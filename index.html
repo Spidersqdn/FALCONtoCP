@@ -24,9 +24,9 @@ body.hide #side{display:none}
 #hdr{padding:14px 14px 10px;border-bottom:1px solid var(--ln)}#hdr b{font-size:18px}#hdr small{display:block;margin-top:4px;color:var(--cy);font:11px Consolas,monospace;letter-spacing:.5px}
 #prof{padding:10px 14px 12px;border-bottom:1px solid var(--ln)}#prof .ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}#prof .ph b{font-size:14px}#prof .ph span{font:11px Consolas,monospace;color:var(--mu)}
 #prG svg{display:block;width:100%;height:auto;background:#2b2e33;border:1px solid var(--ln);border-radius:8px}#prG .e{color:var(--mu);font-size:11px;padding:8px 0}
-#stats #kt{width:90px;font:15px Consolas,monospace;padding:1px 6px;margin:0}
+#stats #kt{width:110px;font:bold 22px Consolas,monospace;padding:1px 6px;margin:0}
 #stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid var(--ln)}
-#stats div{color:var(--mu);font-size:12px}#stats b{display:block;color:var(--tx);font:15px Consolas,monospace;margin-top:2px}
+#stats div{color:var(--mu);font-size:14px}#stats b{display:block;color:var(--tx);font:bold 24px Consolas,monospace;margin-top:2px}
 fieldset{margin:0;border:0;border-bottom:1px solid var(--ln);padding:12px 14px}legend{float:left;width:100%;font-weight:bold;font-size:13px;margin-bottom:8px;color:var(--tx)}
 label{color:var(--mu)}
 input,select,button{font:inherit;color:var(--tx)}input.s{width:60px}
@@ -220,11 +220,11 @@ async function legMaxFt(a,b){const z=12,n=2**z,m=Math.max(2,Math.ceil(legCalc(a,
     const e=d[i]*256+d[i+1]+d[i+2]/256-32768;mx=Math.max(mx,e);bm=Math.max(bm,e);ok=1;if(j%bin===0||j===m){pr.push(Math.max(0,bm)*3.28084);bm=-1e9}}
   if(ok)PROF[ekey(a,b)]=pr;return ok?Math.max(0,mx)*3.28084:null}
 function profile(L_){const g=$('prG');if(!L_.length){g.innerHTML='<div class="e">เพิ่มจุดอย่างน้อย 2 จุด</div>';$('prM').textContent='';return}
-  const W=320,H=170,ml=42,mr=8,mt=16,mb=26,pw=W-ml-mr,ph=H-mt-mb,tot=L_.reduce((s,l)=>s+l.nm,0)||1;
+  const W=320,H=118,ml=40,mr=8,mt=14,mb=28,pw=W-ml-mr,ph=H-mt-mb,tot=L_.reduce((s,l)=>s+l.nm,0)||1;
   let pts=[],x0=0,miss=0;L_.forEach((l,i)=>{const p=PROF[ekey(S.pts[i],S.pts[i+1])];if(!p)miss++;else p.forEach((v,j)=>pts.push([x0+l.nm*j/(p.length-1),v]));x0+=l.nm});
   const mx=pts.reduce((s,p)=>Math.max(s,p[1]),0),st=[1,2,2.5,5].flatMap(k=>[k,k*10,k*100,k*1000,k*10000]).sort((a,b)=>a-b).find(k=>k*4>=Math.max(mx*1.1,20)),ym=st*4;
   const X=v=>ml+v/tot*pw,Y=v=>mt+ph-v/ym*ph,t='font-family="Consolas,monospace" font-size="9"';let o='';
-  for(let k=0;k<=4;k++){const y=Y(st*k);o+=`<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="#3d4147"/><text x="${ml-4}" y="${y+3}" text-anchor="end" fill="#c9ccd1" ${t}>${st*k}</text>`}
+  for(let k=0;k<=4;k+=2){const y=Y(st*k);o+=`<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="#3d4147"/><text x="${ml-4}" y="${y+3}" text-anchor="end" fill="#c9ccd1" ${t}>${st*k}</text>`}
   for(let k=0;k<=5;k++){const v=tot*k/5,x=X(v);o+=`<line x1="${x}" x2="${x}" y1="${mt}" y2="${mt+ph}" stroke="#34373c"/><text x="${x}" y="${mt+ph+11}" text-anchor="middle" fill="#9ccfe8" ${t}>${Math.round(v)}</text>`}
   let c=0;S.pts.forEach((p,i)=>{if(i)c+=L_[i-1].nm;const x=X(c);o+=`<line x1="${x}" x2="${x}" y1="${mt}" y2="${mt+ph}" stroke="#5BC0EB" stroke-dasharray="3 3" opacity=".8"/><text x="${x+2}" y="${mt-4}" fill="#7fd3f5" ${t}>${i+1}</text>`});
   if(pts.length>1){const d=pts.map((p,k)=>(k?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');
