@@ -33,7 +33,9 @@ fieldset label{display:block;margin:4px 0}
 .box .tip{width:0;height:0;border-top:22px solid transparent;border-bottom:22px solid transparent;border-right:20px solid var(--bd);position:relative}
 .box .tip:after{content:"";position:absolute;left:4px;top:-17px;border-top:17px solid transparent;border-bottom:17px solid transparent;border-right:15px solid #fff}
 .box .c{width:30px;border:3px solid var(--bd);border-left-width:0;background:#fff;display:flex;align-items:center;justify-content:center}
-.box .c:first-of-type{border-left-width:0}
+.box .c.f{border-left-width:3px}.box .c.r{background:#eef3f8}
+.box .tip2{width:0;height:0;border-top:22px solid transparent;border-bottom:22px solid transparent;border-left:20px solid var(--bd);position:relative}
+.box .tip2:after{content:"";position:absolute;left:-19px;top:-17px;border-top:17px solid transparent;border-bottom:17px solid transparent;border-left:15px solid #fff}
 .box .c span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;white-space:nowrap}
 .hint{color:var(--mu);font-size:12px;padding:0 14px 14px}
 #side>button{margin:12px 14px 8px;width:calc(100% - 28px)}
@@ -94,6 +96,7 @@ fieldset>*:not(legend){clear:both}
   <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]);this.value=''">
   <button class="pri" onclick="imp.click()">Import (CSV/KML/KMZ/GPX)</button>
   <button onclick="exportCSV()">Export CSV</button> <button onclick="exportKML()">Export KML</button>
+  <button onclick="reverseRoute()">⇄ ย้อนกลับเส้นทาง</button>
   <button onclick="if(confirm('ลบทุกจุด?')){S.pts=[];draw()}">ล้าง</button>
  </fieldset>
  <button onclick="document.body.classList.add('hide');map.invalidateSize()">ซ่อนแถบ (กด Esc เพื่อแสดง) แล้วจับภาพ/Print</button>
@@ -132,7 +135,7 @@ function legs(){const kt=+$('kt').value||90,v=+$('var').value||0;
   return S.pts.slice(1).map((b,i)=>{const a=S.pts[i],c=legCalc(a,b),o=a.ov||{};
     const crs=$('mag').checked?(c.tc-v+360)%360:c.tc;
     const nm=has(o.nm)&&!isNaN(+o.nm)?+o.nm:c.nm,min=parseT(o.t)??nm/kt*60;
-    return {tc:c.tc,nm,min,crsTxt:has(o.crs)?o.crs:pad3(crs),alt:a.alt,o}});}
+    return {tc:c.tc,nm,min,crsTxt:has(o.crs)?o.crs:pad3(crs),crsNum:has(o.crs)&&!isNaN(+o.crs)?+o.crs:crs,alt:a.alt,o}});}
 function save(){S.cfg={url:$('tileUrl').value,tms:$('tms').checked,kt:$('kt').value,v:$('var').value,mag:$('mag').checked};
   S.ui.lbl=$('shLbl').checked;S.ui.box=$('shBox').checked;S.ui.off=$('offl').checked;
   try{localStorage.setItem('routeS',JSON.stringify(S))}catch(e){}
@@ -150,9 +153,11 @@ function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style=
     if(!$('shBox').checked)return;
     if(!a.box)a.box=[(a.lat+b.lat)/2-0.04,(a.lon+b.lon)/2];
     const bc=l.o.col||'#1F4E79';
-    const cells=[l.crsTxt,Math.round(l.nm*10)/10+' NM',hm(l.min),has(a.alt)?a.alt+"'":'-'].map(t=>`<div class="c" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
+    const bo=Object.assign({h:true,t:true,r:true},a.bx||{});
+    const vals=[l.crsTxt,Math.round(l.nm*10)/10+' NM',hm(l.min),has(a.alt)?a.alt+"'":'-'];if(bo.r)vals.push(pad3(l.crsNum+180));
+    const cells=vals.map((t,k)=>`<div class="c${k===0&&!bo.h?' f':''}${bo.r&&k===4?' r':''}" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
     const bx=L.marker(a.box,{draggable:true,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg)"><div class="box" style="--bd:${bc}"><div class="tip"></div>${cells}</div></div>`})}).addTo(grp);
+      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg)"><div class="box" style="--bd:${bc}">${bo.h?'<div class="tip"></div>':''}${cells}${bo.t?'<div class="tip2"></div>':''}</div></div>`})}).addTo(grp);
     bx.on('dragend',e=>{const q=e.target.getLatLng();a.box=[q.lat,q.lng];draw()});
     bx.on('click',()=>editBox(i,a.box));
   });
@@ -167,7 +172,7 @@ function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style=
       <tr><td>TOTAL</td><td>${Math.round(tot)}</td><td>${hm(tmin)}</td></tr>
       <tr><td>ACTUAL</td><td>${first?'-':Math.round(cn)}</td><td>${first?'-':hm(cm)}</td></tr>
       <tr><td>REMAIN</td><td>${last?'-':Math.round(tot-cn)}</td><td>${last?'-':hm(tmin-cm)}</td></tr></table>`;
-    L.polyline([[p.lat,p.lon],p.lbl],{color:'#000',weight:2}).addTo(grp);
+    if(!first&&!last)L.polyline([[p.lat,p.lon],p.lbl],{color:'#000',weight:2}).addTo(grp); // no leader line for origin/destination
     const lb=L.marker(p.lbl,{draggable:true,icon:L.divIcon({className:'lbl',iconSize:null,iconAnchor:[0,0],
       html:`<div style="transform:translate(-50%,-50%)"><div class="t" style="background:${p.lcol||col(p.type)}">${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}</div>${tbl}</div>`})}).addTo(grp);
     lb.on('dragend',e=>{const q=e.target.getLatLng();p.lbl=[q.lat,q.lng];draw()});
@@ -184,8 +189,10 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
    <label>เวลา (H:MM หรือ นาที)</label><input id="eT" value="${esc(o.t)}" placeholder="${hm(l.min)}">
    <label>ALT ft</label><input id="eA" value="${esc(a.alt)}">
    <label>สีกรอบ</label><input id="eK" type="color" value="${o.col||'#1F4E79'}">
+   ${(b=>`<label style="color:#333"><input type="checkbox" id="bH" ${b.h?'checked':''} style="width:auto"> สามเหลี่ยมหัว</label><label style="color:#333"><input type="checkbox" id="bT" ${b.t?'checked':''} style="width:auto"> สามเหลี่ยมท้าย</label><label style="color:#333"><input type="checkbox" id="bR" ${b.r?'checked':''} style="width:auto"> แสดงทิศกลับ (${pad3(l.crsNum+180)})</label>`)(Object.assign({h:true,t:true,r:true},a.bx||{}))}
+   <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบกล่องนี้กับทุก leg</label>
    <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};map.closePopup();draw()">คืนค่าอัตโนมัติ</button>`)}
-function saveBox(i){const a=S.pts[i];a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),col:$('eK').value};a.alt=$('eA').value.trim();map.closePopup();draw()}
+function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked)S.pts.forEach(p=>{p.bx={...bx};if(p.ov)p.ov.col=$('eK').value});a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),col:$('eK').value};a.alt=$('eA').value.trim();map.closePopup();draw()}
 function editLbl(i){const p=S.pts[i];
   popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
    <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(p.ltxt)}" placeholder="${esc(p.type+' '+p.name)}">
@@ -207,6 +214,12 @@ function list(L_,tot,tmin){
     +(L_.length?`<li class="v" style="color:var(--au);font:bold 12px Consolas,monospace">TOTAL ${tot.toFixed(1)} NM · ${hm(tmin)}</li>`:'');
   const alts=S.pts.map(p=>parseFloat(p.alt)).filter(x=>!isNaN(x));
   $('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;$('stA').textContent=alts.length?Math.max(...alts)+' ft':'-';}
+// reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
+function reverseRoute(){const n=S.pts.length;if(n<2)return;
+  const legd=S.pts.slice(0,-1).map(p=>({box:p.box,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx}));
+  S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,ov:undefined,alt:'',bx:undefined};Object.assign(p,d)});
+  const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2)}
+  draw()}
 function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
 function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
 function ins(i){const a=S.pts[i],b=S.pts[i+1];if(!b)return setMode('map');
