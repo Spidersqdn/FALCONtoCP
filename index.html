@@ -34,7 +34,7 @@ fieldset label{display:block;margin:4px 0}
 .box .tip{width:0;height:0;border-top:calc(var(--h)/2) solid transparent;border-bottom:calc(var(--h)/2) solid transparent;border-right:20px solid var(--bd);position:relative}
 .box .tip:after{content:"";position:absolute;left:4px;top:calc(5px - var(--h)/2);border-top:calc(var(--h)/2 - 5px) solid transparent;border-bottom:calc(var(--h)/2 - 5px) solid transparent;border-right:15px solid #fff}
 .box .c{width:30px;border:3px solid var(--bd);border-left-width:0;background:#fff;display:flex;align-items:center;justify-content:center}
-.box .c.f{border-left-width:3px}.box .c.r{background:#eef3f8}
+.box .c.f{border-left-width:3px}.box .c.l{border-right-width:0}.box svg{flex:none;overflow:visible}.box .c.r{background:#eef3f8}
 .box .tip2{width:0;height:0;border-top:calc(var(--h)/2) solid transparent;border-bottom:calc(var(--h)/2) solid transparent;border-left:20px solid var(--bd);position:relative}
 .box .tip2:after{content:"";position:absolute;left:-19px;top:calc(5px - var(--h)/2);border-top:calc(var(--h)/2 - 5px) solid transparent;border-bottom:calc(var(--h)/2 - 5px) solid transparent;border-left:15px solid #fff}
 .box .c span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;white-space:nowrap}
@@ -97,8 +97,9 @@ fieldset>*:not(legend){clear:both}
  <fieldset><legend>ไฟล์</legend>
   <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]);this.value=''">
   <button class="pri" onclick="imp.click()">Import (CSV/KML/KMZ/GPX)</button>
-  <button onclick="exportCSV()">Export CSV</button> <button onclick="exportKML()">Export KML</button>
-  <button onclick="reverseRoute()">⇄ ย้อนกลับเส้นทาง</button>
+  <button onclick="exportKML()">Export KML</button>
+  <button onclick="undo()" title="Ctrl+Z">↶ ย้อนกลับ (Undo)</button>
+  <button onclick="reverseRoute()">⇄ กลับทิศเส้นทาง</button>
   <button onclick="if(confirm('ลบทุกจุด?')){S.pts=[];draw()}">ล้าง</button>
  </fieldset>
  <button onclick="document.body.classList.add('hide');map.invalidateSize()">ซ่อนแถบ (กด Esc เพื่อแสดง) แล้วจับภาพ/Print</button>
@@ -146,7 +147,13 @@ function shape(t){const c=kind(t);
   if(c==='PZ')return '<svg width="26" height="24"><polygon points="13,2 24,22 2,22" fill="#F5A800" stroke="#1F4E79" stroke-width="2.5"/></svg>';
   if(c==='LZ')return '<svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="#F5A800" stroke="#1F4E79" stroke-width="2.5"/></svg>';
   return '<svg width="18" height="18"><rect x="2" y="2" width="14" height="14" fill="none" stroke="#000" stroke-width="3"/></svg>';}
-function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
+// undo history: snapshot route before each change; rapid changes (sliders) merge into one step
+const HIST=[];let lastSnap=null,lastT=0,undoing=false;
+function snap(){const j=JSON.stringify(S.pts,(k,v)=>k==='_auto'?undefined:v);if(j===lastSnap)return;
+  if(lastSnap!==null&&!undoing){const now=Date.now();if(now-lastT>400||!HIST.length)HIST.push(lastSnap);lastT=now;if(HIST.length>100)HIST.shift()}
+  lastSnap=j}
+function undo(){if(!HIST.length)return;undoing=true;S.pts=JSON.parse(HIST.pop());map.closePopup();draw();undoing=false}
+function draw(){snap();grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
   const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
@@ -158,10 +165,10 @@ function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style=
     const bc=l.o.col||'#1F4E79';
     const bo=Object.assign({h:true,t:true,r:true},a.bx||{});
     const vals=[l.crsTxt,Math.round(l.nm*10)/10+' NM',hm(l.min),has(a.alt)?a.alt+"'":'-'];if(bo.r)vals.push(pad3(l.crsNum+180));
-    const cells=vals.map((t,k)=>`<div class="c${k===0&&!bo.h?' f':''}${bo.r&&k===4?' r':''}" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
+    const cells=vals.map((t,k)=>`<div class="c${k===0&&!bo.h?' f':''}${k===vals.length-1&&bo.t?' l':''}${bo.r&&k===4?' r':''}" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
     const h=Math.max(44,Math.max(...vals.map(v=>String(v).length))*7.5+12),sc=a.bsc||S.ui.bsc||1;
     const bx=L.marker(a.box,{draggable:true,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg) scale(${sc})"><div class="box" style="--bd:${bc};--h:${h}px">${bo.h?'<div class="tip"></div>':''}${cells}${bo.t?'<div class="tip2"></div>':''}</div></div>`})}).addTo(grp);
+      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg) scale(${sc})"><div class="box" style="--bd:${bc};--h:${h}px">${bo.h?tipSvg(h,bc,0):''}${cells}${bo.t?tipSvg(h,bc,1):''}</div></div>`})}).addTo(grp);
     bx.on('dragend',e=>{const q=e.target.getLatLng();a.box=[q.lat,q.lng];draw()});
     bx.on('click',()=>editBox(i,a.box));
   });
@@ -182,6 +189,8 @@ function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style=
     lb.on('click',()=>editLbl(i));
   });
   list(L_,tot,tmin);save();}
+function tipSvg(h,c,tail){const m=h/2,p=tail?`0,1.5 18.5,${m} 0,${h-1.5}`:`20,1.5 1.5,${m} 20,${h-1.5}`,f=p;
+  return `<svg width="20" height="${h}"><polygon points="${f}" fill="#fff"/><polyline points="${p}" fill="none" stroke="${c}" stroke-width="3" stroke-linejoin="miter"/></svg>`}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 // ---- editable leg box / label (popup forms) ----
 function popForm(ll,html){L.popup({className:'pop',minWidth:220,maxHeight:440}).setLatLng(ll).setContent(`<div class="pop">${html}</div>`).openOn(map)}
@@ -252,7 +261,7 @@ function setMode(m){S.ui.mode=m;$('mOn').classList.toggle('on',m==='map');$('mLL
 function setStyle(s,user){S.ui.style=s;if(user){S.ui.line=s==='anf'?'solid':'dash'}$('lineSt').value=S.ui.line;$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
 map.on('click',e=>{if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
 ['kt','var','mag'].forEach(id=>$(id).onchange=draw);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.body.classList.remove('hide');map.invalidateSize()}});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();undo()}if(e.key==='Escape'){document.body.classList.remove('hide');map.invalidateSize()}});
 // ---- offline cache (service worker) ----
 async function cacheInfo(){try{const k=await caches.open('tiles').then(c=>c.keys());const e=await navigator.storage?.estimate?.();
   $('cacheInfo').textContent=`เก็บแล้ว ${k.length} ชิ้น`+(e?` · ${(e.usage/1048576).toFixed(0)} MB`:'')}catch(e){$('cacheInfo').textContent='offline ใช้ได้เมื่อเปิดผ่าน https'}}
