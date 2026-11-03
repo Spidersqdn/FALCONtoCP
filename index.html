@@ -302,7 +302,7 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     const bc=l.o.col||'#1F4E79';
     const bo=Object.assign({h:true,t:true},a.bx||{});
     // heading sits inside the head triangle, reciprocal inside the tail triangle (as cells if a triangle is off)
-    const hd=l.crsTxt,rc=null;
+    const hd=l.crsTxt,rc=pad3(l.crsNum+180);
     // eastbound legs: turn the box 180° so text stays upright; head (HDG) end then sits on the right.
     // NM / time / ALT always read left to right in that order
     const flip=l.tc<180,lt=flip?bo.t:bo.h,rt=flip?bo.h:bo.t,mid3=[Math.round(l.nm*10)/10+' NM',hm(l.min),has(l.alt)?l.alt+"'":'-'];
