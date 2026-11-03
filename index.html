@@ -258,7 +258,11 @@ function snap(){const j=JSON.stringify(S.pts,(k,v)=>k==='_auto'?undefined:v);if(
   if(lastSnap!==null&&!undoing){const now=Date.now();if(now-lastT>400||!HIST.length)HIST.push(lastSnap);lastT=now;if(HIST.length>100)HIST.shift()}
   lastSnap=j}
 function undo(){if(!HIST.length)return;undoing=true;S.pts=JSON.parse(HIST.pop());closeEd();draw();undoing=false}
-function draw(){snap();grp.clearLayers();const r=render(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain()}
+// route roles by position: first = PZ, last = LZ, the rest = CP (keeps a matching suffix like CP2)
+function fixTypes(){const n=S.pts.length,dc=Object.values(COL).map(c=>c.toLowerCase());
+  S.pts.forEach((p,i)=>{const want=i===0?'PZ':i===n-1?'LZ':'CP';if(kind(p.type)===want)return;
+    p.type=want==='CP'?'CP'+i:want;if(p.lcol!=null&&dc.includes(String(p.lcol).toLowerCase()))delete p.lcol})}
+function draw(){fixTypes();snap();grp.clearLayers();const r=render(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain()}
 // ---- leg ALT from terrain: highest ground along the leg (AWS Terrarium DEM, z12 ~30 m), round up to 100 ft, + 500 ft ----
 const ELV={},ELP={},DEM={};const ekey=(a,b)=>[a.lat,a.lon,b.lat,b.lon].join(',');
 function autoAlt(a,b){const f=b&&ELV[ekey(a,b)];return f==null?null:String(Math.ceil(f/100)*100+500)}
