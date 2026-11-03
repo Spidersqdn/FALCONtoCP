@@ -103,7 +103,7 @@ fieldset>*:not(legend){clear:both}
   <div class="row" style="margin-top:8px"><button class="pri" onclick="addFromForm()">Add ROUTE</button></div>
   <div class="sm" id="modeHint"></div>
   <div class="sm" style="margin-top:10px">รูปแบบเส้นทาง</div>
-  <div class="seg"><button id="sA" onclick="setStyle('anf',1)">AirNavFlow</button><button id="sC" onclick="setStyle('cp',1)">แผนที่ CP</button></div>
+  <div class="seg"><button id="sA" onclick="setStyle('anf',1)">NAVIGATION</button><button id="sC" onclick="setStyle('cp',1)">แผนที่แผนสมบูรณ์</button></div>
   <div class="row"><span class="sm" style="flex:none">เส้นทาง</span><select id="lineSt" onchange="S.ui.line=this.value;draw()"><option value="solid">เส้นทึบ</option><option value="dash">เส้นประ</option></select></div>
   <label><input type="checkbox" id="shLbl" checked onchange="draw()"> SHOW PZ CPs LZ</label>
   <label><input type="checkbox" id="shBox" checked onchange="draw()"> SHOW DOG LEGs</label>
@@ -189,7 +189,7 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
     const dash=(a.ln||S.ui.line)==='dash'?'10 8':null; // per-leg line style overrides the global one
     L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:4,opacity:.95,dashArray:dash}:{color:'#000',weight:3,dashArray:dash}).addTo(g);
-    if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
+    if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
     if(!$('shBox').checked)return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
     const mid=[(a.lat+b.lat)/2,(a.lon+b.lon)/2],half=Math.hypot(a.lat-b.lat,a.lon-b.lon)/2;
