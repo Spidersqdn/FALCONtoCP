@@ -3,17 +3,29 @@
 <title>Route Map CP</title>
 <link rel="stylesheet" href="lib/leaflet.css"><script src="lib/leaflet.js"></script><script src="lib/jszip.min.js"></script><script src="lib/pmtiles.js"></script><script src="config.js"></script>
 <style>
-:root{--bd:#1F4E79}
-*{box-sizing:border-box}body{margin:0;font:13px Tahoma,"Leelawadee UI",sans-serif;display:flex;height:100vh}
-#side{width:390px;overflow:auto;padding:8px;background:#f4f4f4;border-right:1px solid #aaa}
+:root{--bd:#1F4E79;--bg:#232529;--bg2:#1b1d20;--ln:#34373c;--tx:#e8e8e8;--mu:#9aa0a6;--au:#F2B43C;--cy:#5BC0EB}
+*{box-sizing:border-box}body{margin:0;font:13px Tahoma,"Leelawadee UI",sans-serif;display:flex;height:100vh;background:var(--bg2);color:var(--tx)}
+#side{width:clamp(300px,19vw,400px);flex:none;overflow:auto;background:var(--bg);border-right:1px solid #000;scrollbar-color:#555 var(--bg)}
 #map{flex:1;background:#e8e3c8}
 body.hide #side{display:none}
-fieldset{margin:0 0 8px;border:1px solid #bbb;padding:6px}legend{font-weight:bold}
-input,select,button{font:inherit}input.s{width:60px}
-table.wp{border-collapse:collapse;width:100%}table.wp td,table.wp th{border:1px solid #ccc;padding:1px}
-table.wp input{width:100%;border:0;background:transparent}table.wp select{border:0}
-#legs div{padding:2px 0;border-bottom:1px dotted #bbb}
-.lbl{pointer-events:auto}
+#hdr{padding:14px 14px 10px;border-bottom:1px solid var(--ln)}#hdr b{font-size:18px}#hdr small{display:block;margin-top:4px;color:var(--cy);font:11px Consolas,monospace;letter-spacing:.5px}
+#stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid var(--ln)}
+#stats div{color:var(--mu);font-size:12px}#stats b{display:block;color:var(--tx);font:15px Consolas,monospace;margin-top:2px}
+fieldset{margin:0;border:0;border-bottom:1px solid var(--ln);padding:12px 14px}legend{float:left;width:100%;font-weight:bold;font-size:13px;margin-bottom:8px;color:var(--tx)}
+label{color:var(--mu)}
+input,select,button{font:inherit;color:var(--tx)}input.s{width:60px}
+input:not([type=checkbox]),select{background:var(--bg2);border:1px solid var(--ln);border-radius:4px;padding:5px 7px;font-family:Consolas,monospace}
+input:focus,select:focus{outline:1px solid var(--cy);border-color:var(--cy)}input[type=checkbox]{accent-color:var(--cy)}
+button{background:#3a3d42;border:1px solid #4a4d52;border-radius:4px;padding:6px 10px;margin:2px 0;cursor:pointer}button:hover{background:#474a50}
+button.pri{background:var(--au);border-color:var(--au);color:#1b1d20;font-weight:bold}button.pri:hover{filter:brightness(1.08)}
+table.wp{border-collapse:collapse;width:100%}table.wp th{color:var(--mu);font-weight:normal;text-align:left;padding:4px 2px;border-bottom:1px solid var(--ln)}
+table.wp td{padding:3px 2px;border-bottom:1px solid var(--ln)}
+table.wp input{width:100%;border:0;background:transparent;padding:3px}table.wp select{border:0}
+table.wp button{padding:2px 6px;color:var(--cy)}table.wp button+button{color:#ff6b6b}
+#legs{margin-top:8px;font-family:Consolas,monospace;font-size:12px}#legs div{padding:4px 0;border-bottom:1px dotted var(--ln)}#legs b{color:var(--au)}
+.leaflet-bar a{background:var(--bg);color:var(--tx);border-color:var(--ln)}.leaflet-bar a:hover{background:#3a3d42}
+.lbl{pointer-events:auto;color:#000}.box{color:#000}
+fieldset label{display:block;margin:4px 0}
 .lbl .t{border:2px solid #000;padding:3px 10px;font-size:14px;white-space:nowrap;text-align:center;box-shadow:1px 1px 3px #0006}
 .lbl table{border-collapse:collapse;background:#fff;margin:2px auto 0;font-size:11px}
 .lbl td{border:1px solid #000;padding:1px 6px;text-align:center;min-width:42px}
@@ -23,15 +35,18 @@ table.wp input{width:100%;border:0;background:transparent}table.wp select{border
 .box .c{width:30px;border:3px solid var(--bd);border-left-width:0;background:#fff;display:flex;align-items:center;justify-content:center}
 .box .c:first-of-type{border-left-width:0}
 .box .c span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;white-space:nowrap}
-.hint{color:#555;font-size:12px}
+.hint{color:var(--mu);font-size:12px;padding:0 14px 14px}
+#side>button{margin:12px 14px 8px;width:calc(100% - 28px)}
 @media print{#side{display:none}}
 </style></head><body>
 <div id="side">
+ <div id="hdr"><b>FalconView CP</b><small>ROUTE PLANNER · PZ / CP / LZ</small></div>
+ <div id="stats"><div>Distance<b id="stD">-</b></div><div>Flight Time<b id="stT">-</b></div><div>Waypoints<b id="stN">-</b></div><div>GS<b id="stK">-</b></div></div>
  <fieldset><legend>แผนที่ (tiles)</legend>
   URL <input id="tileUrl" style="width:100%" value="map.pmtiles" placeholder="map.pmtiles หรือ tiles/{z}/{x}/{y}.png">
   <label><input type="checkbox" id="tms"> TMS (gdal2tiles ไม่ได้ใส่ --xyz)</label>
   <label><input type="checkbox" id="osm"> OSM ออนไลน์ (ทดสอบ)</label>
-  <button onclick="setBase()">โหลดแผนที่</button>
+  <button class="pri" onclick="setBase()">โหลดแผนที่</button>
  </fieldset>
  <fieldset><legend>ค่าการบิน</legend>
   GS <input id="kt" class="s" type="number" value="90"> kt &nbsp; VAR <input id="var" class="s" type="number" step="0.1" value="0"> (E=+)
@@ -43,7 +58,7 @@ table.wp input{width:100%;border:0;background:transparent}table.wp select{border
  </fieldset>
  <fieldset><legend>ไฟล์</legend>
   <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]);this.value=''">
-  <button onclick="imp.click()">Import (CSV/KML/KMZ/GPX)</button>
+  <button class="pri" onclick="imp.click()">Import (CSV/KML/KMZ/GPX)</button>
   <button onclick="exportCSV()">Export CSV</button> <button onclick="exportKML()">Export KML</button>
   <button onclick="if(confirm('ลบทุกจุด?')){S.pts=[];draw()}">ล้าง</button>
  </fieldset>
@@ -117,7 +132,8 @@ function table(L_,tot,tmin){
    <td><input value="${esc(p.alt)}" style="width:44px" onchange="S.pts[${i}].alt=this.value;draw()"></td>
    <td style="white-space:nowrap"><button onclick="mv(${i},-1)">↑</button><button onclick="S.pts.splice(${i},1);draw()">✕</button></td></tr>`).join('');
   $('legs').innerHTML=L_.map((l,i)=>`<div>Leg ${i+1} ${esc(S.pts[i].type)}→${esc(S.pts[i+1].type)}: <b>${pad3(l.crs)}°</b> ${l.nm.toFixed(1)} NM ${hm(l.min)}</div>`).join('')
-    +(L_.length?`<div><b>TOTAL ${tot.toFixed(1)} NM ${hm(tmin)}</b></div>`:'');}
+    +(L_.length?`<div><b>TOTAL ${tot.toFixed(1)} NM ${hm(tmin)}</b></div>`:'');
+  $('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;$('stK').textContent=(+$('kt').value||90)+' kt';}
 function mv(i,d){if(i+d<0)return;[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
 map.on('click',e=>{const n=S.pts.length;
   const type=prompt('Type (PZ / CP1 / CP2 / LZ)',n?('CP'+n):'PZ');if(!type)return;
