@@ -290,12 +290,15 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     const bo=Object.assign({h:true,t:true,r:true},a.bx||{});
     // heading sits inside the head triangle, reciprocal inside the tail triangle (as cells if a triangle is off)
     const hd=l.crsTxt,rc=bo.r?pad3(l.crsNum+180):null;
-    const vals=[...(bo.h?[]:[hd]),Math.round(l.nm*10)/10+' NM',hm(l.min),has(l.alt)?l.alt+"'":'-',...(rc&&!bo.t?[rc]:[])];
-    const cells=vals.map((t,k)=>`<div class="c${k===0&&!bo.h?' f':''}${k===vals.length-1&&bo.t?' l':''}" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
+    // eastbound legs: turn the box 180° so text stays upright; head (HDG) end then sits on the right.
+    // NM / time / ALT always read left to right in that order
+    const flip=l.tc<180,lt=flip?bo.t:bo.h,rt=flip?bo.h:bo.t,mid3=[Math.round(l.nm*10)/10+' NM',hm(l.min),has(l.alt)?l.alt+"'":'-'];
+    const hc=bo.h?[]:[hd],rcc=rc&&!bo.t?[rc]:[],vals=flip?[...rcc,...mid3,...hc]:[...hc,...mid3,...rcc];
+    const cells=vals.map((t,k)=>`<div class="c${k===0&&!lt?' f':''}${k===vals.length-1&&rt?' l':''}" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
     const tipLen=Math.max(String(hd).length,rc?rc.length:0);
     const h=Math.max(44,Math.max(...vals.map(v=>String(v).length))*7.5+12,(bo.h||bo.t)?(tipLen*7.5+12)/0.62:0),sc=a.bsc||S.ui.bsc||1;
     const bx=L.marker(a.box,{draggable:!ro,interactive:!ro,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg) scale(${sc})"><div class="box" style="--bd:${bc};--h:${h}px">${bo.h?tipSvg(h,bc,0,hd):''}${cells}${bo.t?tipSvg(h,bc,1,rc):''}</div></div>`})}).addTo(g);
+      html:`<div style="transform:translate(-50%,-50%) rotate(${flip?l.tc-90:l.tc-270}deg) scale(${sc})"><div class="box" style="--bd:${bc};--h:${h}px">${lt?tipSvg(h,bc,0,flip?rc:hd):''}${cells}${rt?tipSvg(h,bc,1,flip?hd:rc):''}</div></div>`})}).addTo(g);
     if(ro)return;
     bx.on('dragend',e=>{const q=e.target.getLatLng();a.boff=[q.lat-mid[0],q.lng-mid[1]];draw()});
     bx.on('click',()=>editBox(i,a.box));
@@ -371,8 +374,8 @@ function list(L_,tot,tmin){
   profile(L_);$('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
 function reverseRoute(){const n=S.pts.length;if(n<2)return;
-  const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx}));
-  S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined};Object.assign(p,d)});
+  const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx,bsc:p.bsc,ln:p.ln}));
+  S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined};Object.assign(p,d)});
   const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2)}
   draw()}
 function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
