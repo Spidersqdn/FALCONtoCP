@@ -4,7 +4,8 @@ window.CONFIG = {
   MAP_URL: "https://pub-7591a6eb62fa48edac57d65672e452bb.r2.dev/map250k.pmtiles",
   MAPS: [
     { name: "JOG 1:250,000", url: "https://pub-7591a6eb62fa48edac57d65672e452bb.r2.dev/map250k.pmtiles" },
-    { name: "TPC 1:500,000", url: "https://pub-7591a6eb62fa48edac57d65672e452bb.r2.dev/map500k.pmtiles" }
+    { name: "TPC 1:500,000", url: "https://pub-7591a6eb62fa48edac57d65672e452bb.r2.dev/map500k.pmtiles" },
+    { name: "TLM 1:50,000", url: "https://pub-7591a6eb62fa48edac57d65672e452bb.r2.dev/map50k.pmtiles" }
   ],
   DEFAULT_KT: 90
 };
