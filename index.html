@@ -258,7 +258,8 @@ function editLbl(i){const p=S.pts[i];
    <label>เลื่อนหัวชื่อ ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tdx||0}" oninput="S.pts[${i}].tdx=+this.value;draw()">
    <label>เลื่อนตาราง ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tbx||0}" oninput="S.pts[${i}].tbx=+this.value;draw()">
    <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
-   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','tdx','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button>`)}
+   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','tdx','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
+function delPt(i){const p=S.pts[i];if(!confirm('ลบจุด '+(p.type+' '+p.name).trim()+' ? (กด Undo เพื่อย้อนได้)'))return;resetBox(i-1);S.pts.splice(i,1);closeEd();draw()}
 function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
   if($('lAll').checked){S.ui.lsc=p.lsc;S.pts.forEach(q=>{delete q.lsc;q.tdx=p.tdx;q.tbx=p.tbx})}closeEd();draw()}
 // ---- waypoint list (AirNavFlow style) ----
