@@ -8,6 +8,10 @@
 #side{width:clamp(320px,25vw,560px);flex:none;overflow:auto;background:var(--bg);border-right:1px solid #000;scrollbar-color:#555 var(--bg)}
 #map{flex:1;background:#e8e3c8}
 body.hide #side{display:none}
+#tog{position:fixed;top:50%;left:clamp(320px,25vw,560px);transform:translateY(-50%);z-index:1001;width:18px;height:64px;background:var(--bg);color:var(--au);border:1px solid #000;border-left:0;border-radius:0 6px 6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;box-shadow:2px 0 4px #0006}
+#tog:hover{background:#3a3d42}body.hide #tog{left:0}
+.b3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.b3 button{margin:0;padding:9px 4px;font-weight:bold}
+@media print{#tog{display:none}}
 #hdr{padding:14px 14px 10px;border-bottom:1px solid var(--ln)}#hdr b{font-size:18px}#hdr small{display:block;margin-top:4px;color:var(--cy);font:11px Consolas,monospace;letter-spacing:.5px}
 #stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid var(--ln)}
 #stats div{color:var(--mu);font-size:12px}#stats b{display:block;color:var(--tx);font:15px Consolas,monospace;margin-top:2px}
@@ -73,7 +77,7 @@ fieldset>*:not(legend){clear:both}
 <div id="side">
  <div id="hdr"><b>FALCONtoCP</b><small>ROUTE PLANNER · PZ / CP / LZ</small></div>
  <div id="stats"><div>Distance<b id="stD">-</b></div><div>Flight Time<b id="stT">-</b></div><div>Waypoints<b id="stN">-</b></div><div>Highest ALT<b id="stA">-</b></div></div>
- <fieldset><legend>แผนที่</legend>
+ <fieldset><legend>MAP</legend>
   <select id="mapSel" style="width:100%" onchange="pickMap(this.value)"></select>
   <label><input type="checkbox" id="offl" checked onchange="save()"> เก็บแผนที่ที่เปิดดูไว้ใช้ offline</label>
   <div class="sm" id="cacheInfo">-</div>
@@ -84,7 +88,7 @@ fieldset>*:not(legend){clear:both}
    <button class="pri" onclick="$('mapSel').value='';setBase()">โหลด URL นี้</button>
   </details>
  </fieldset>
- <fieldset><legend>ค่าการบิน</legend>
+ <fieldset><legend>FLIGHT PARAMETER</legend>
   GS <input id="kt" class="s" type="number" value="90"> kt &nbsp; VAR <input id="var" class="s" type="number" step="0.1" value="0"> (E=+)
   <label><input type="checkbox" id="mag"> แสดงเป็น MH</label>
  </fieldset>
@@ -101,8 +105,8 @@ fieldset>*:not(legend){clear:both}
   <div class="sm" style="margin-top:10px">รูปแบบเส้นทาง</div>
   <div class="seg"><button id="sA" onclick="setStyle('anf',1)">AirNavFlow</button><button id="sC" onclick="setStyle('cp',1)">แผนที่ CP</button></div>
   <div class="row"><span class="sm" style="flex:none">เส้นทาง</span><select id="lineSt" onchange="S.ui.line=this.value;draw()"><option value="solid">เส้นทึบ</option><option value="dash">เส้นประ</option></select></div>
-  <label><input type="checkbox" id="shLbl" checked onchange="draw()"> แสดงป้ายจุด + ตาราง TOTAL/ACTUAL/REMAIN</label>
-  <label><input type="checkbox" id="shBox" checked onchange="draw()"> แสดงกล่องข้อมูล leg (คลิกกล่องเพื่อแก้ไข)</label>
+  <label><input type="checkbox" id="shLbl" checked onchange="draw()"> SHOW PZ CPs LZ</label>
+  <label><input type="checkbox" id="shBox" checked onchange="draw()"> SHOW DOG LEGs</label>
   <div class="wh" style="margin-top:8px"><span>Waypoint</span><span style="text-align:right">Dist</span><span style="text-align:right">CRS</span><span style="text-align:right">ETE</span><span style="text-align:right">ALT</span><span></span></div>
   <ul class="wl" id="wpl"></ul>
  </fieldset>
@@ -110,9 +114,7 @@ fieldset>*:not(legend){clear:both}
   <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]);this.value=''">
   <button class="pri" onclick="imp.click()">Import (CSV/KML/KMZ/GPX)</button>
   <button onclick="exportKML()">Export KML</button>
-  <button onclick="undo()" title="Ctrl+Z">↶ Undo</button>
-  <button onclick="reverseRoute()">⇄ กลับทิศเส้นทาง</button>
-  <button onclick="if(confirm('ลบทุกจุด?')){S.pts=[];draw()}">ล้าง</button>
+  <div class="b3"><button onclick="undo()" title="Ctrl+Z">↶ UNDO</button><button onclick="reverseRoute()" title="กลับทิศเส้นทาง">⇄ BACK TRACK</button><button onclick="if(confirm('ลบทุกจุด?')){S.pts=[];draw()}">CLEAR</button></div>
  </fieldset>
  <fieldset><legend>Export Map (พิมพ์ขนาดจริง แบ่งแผ่น)</legend>
   <div class="row"><div><div class="sm">มาตราส่วน 1:</div><select id="pS" onchange="prUpd()"><option value="50000">50,000<option value="100000">100,000<option value="250000" selected>250,000<option value="500000">500,000<option value="1000000">1,000,000</select></div>
@@ -125,9 +127,10 @@ fieldset>*:not(legend){clear:both}
   <button class="pri" onclick="printPages()">Print / Save PDF</button>
   <div class="sm">หน้าต่าง Print: Scale = 100% / Actual size (ห้าม Fit to page) · เลือก Save as PDF เพื่อได้ไฟล์ PDF · เส้นประแดง = แนวขอบแผ่นข้างเคียง ใช้ต่อแผ่น</div>
  </fieldset>
- <button onclick="document.body.classList.add('hide');map.invalidateSize()">ซ่อนแถบ (กด Esc เพื่อแสดง) แล้วจับภาพ/Print</button>
+ 
  <p class="hint">On MAP: คลิกแผนที่เพื่อเพิ่มจุด · ลากจุด/ป้าย/กล่องได้ · คลิกกล่อง/ป้ายเพื่อแก้ค่า. ข้อมูลบันทึกในเบราว์เซอร์อัตโนมัติ</p>
 </div>
+<div id="tog" title="ซ่อน/แสดงแถบ" onclick="togSide()">◀</div>
 <div id="map"></div>
 <div id="edp"></div>
 <div id="prt"></div>
@@ -287,6 +290,7 @@ function resetBox(...ix){ix.forEach(k=>{const p=S.pts[k];if(p){delete p.boff;del
 function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;resetBox(i-1,i,i+d-1,i+d);[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
 function ins(i){const a=S.pts[i],b=S.pts[i+1];if(!b)return setMode('map');resetBox(i);
   S.pts.splice(i+1,0,{type:'CP',name:'',lat:+((a.lat+b.lat)/2).toFixed(6),lon:+((a.lon+b.lon)/2).toFixed(6),alt:a.alt});draw()}
+function togSide(){const h=document.body.classList.toggle('hide');$('tog').textContent=h?'▶':'◀';map.invalidateSize()}
 // ---- add waypoint (On MAP / LAT-LONG) ----
 function parseCoord(v){v=String(v).trim().toUpperCase();if(!v)return null;
   const neg=/^[SW-]|[SW]$/.test(v);const n=v.replace(/[NSEW°'"]/g,' ').trim().split(/[\s,]+/).map(Number);
@@ -304,7 +308,7 @@ function setMode(m){S.ui.mode=m;$('mOn').classList.toggle('on',m==='map');$('mLL
 function setStyle(s,user){S.ui.style=s;if(user){S.ui.line=s==='anf'?'solid':'dash'}$('lineSt').value=S.ui.line;$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
 map.on('click',e=>{if($('edp').style.display==='block'){closeEd();return}if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
 ['kt','var','mag'].forEach(id=>$(id).onchange=draw);
-document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();undo()}if(e.key==='Escape'){document.body.classList.remove('hide');map.invalidateSize()}});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();undo()}});
 // ---- offline cache (service worker) ----
 async function cacheInfo(){try{const k=await caches.open('tiles').then(c=>c.keys());const e=await navigator.storage?.estimate?.();
   $('cacheInfo').textContent=`เก็บแล้ว ${k.length} ชิ้น`+(e?` · ${(e.usage/1048576).toFixed(0)} MB`:'')}catch(e){$('cacheInfo').textContent='offline ใช้ได้เมื่อเปิดผ่าน https'}}
