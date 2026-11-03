@@ -124,6 +124,8 @@ body{height:100dvh}
  #edp{top:6px;right:6px;max-height:calc(100dvh - 12px)}
  #stats b{font-size:18px}#hdr{padding:8px 12px}#prof{padding:6px 12px}
 }
+#upd{display:none;position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:3000;background:#F2B43C;color:#111;font:bold 14px sans-serif;padding:10px 16px;border-radius:20px;box-shadow:0 3px 12px #0008;cursor:pointer}
+@media print{#upd{display:none!important}}
 </style></head><body>
 <div id="side">
  <div id="hdr"><b><img src="icon.svg" alt="" style="width:22px;height:22px;vertical-align:-4px;margin-right:6px">FalCon2CP</b><small>ROUTE PLANNER · PZ / CP / LZ</small></div>
@@ -160,7 +162,7 @@ body{height:100dvh}
   <ul class="wl" id="wpl"></ul>
  </fieldset>
  <fieldset><legend>ไฟล์</legend>
-  <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]);this.value=''">
+  <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]).catch(()=>alert('อ่านไฟล์ไม่ได้'));this.value=''">
   <button class="pri" onclick="imp.click()">Import (CSV/KML/KMZ/GPX)</button>
   <button onclick="exportKML()">Export KML</button>
   <div class="b3"><button onclick="undo()" title="Ctrl+Z">↶ UNDO</button><button onclick="reverseRoute()" title="กลับทิศเส้นทาง">⇄ BACK TRACK</button><button onclick="if(confirm('ลบทุกจุด?')){S.pts=[];draw()}">CLEAR</button></div>
@@ -184,6 +186,7 @@ body{height:100dvh}
 <div id="map"></div>
 <div id="edp"></div>
 <div id="prt"></div>
+<div id="upd" onclick="location.reload()">มีเวอร์ชันใหม่ · แตะเพื่ออัปเดต ⟳</div>
 <script>
 const COL={PZ:'#FF66CC',CP:'#22BB33',LZ:'#FFD700'};
 const OSM='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -410,14 +413,25 @@ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLower
 async function cacheInfo(){try{const k=await caches.open('tiles').then(c=>c.keys());const e=await navigator.storage?.estimate?.();
   $('cacheInfo').textContent=`เก็บแล้ว ${k.length} ชิ้น`+(e?` · ${(e.usage/1048576).toFixed(0)} MB`:'')}catch(e){$('cacheInfo').textContent='offline ใช้ได้เมื่อเปิดผ่าน https'}}
 async function clearCache(){if(!confirm('ลบแผนที่ที่เก็บไว้ offline ทั้งหมด?'))return;await caches.delete('tiles');cacheInfo()}
-if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))
-  navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(()=>{save();setInterval(cacheInfo,5000)}).catch(()=>{});
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{swReg=r;return navigator.serviceWorker.ready}).then(()=>{save();setInterval(()=>{if(!document.hidden)cacheInfo()},5000)}).catch(()=>{});
+  navigator.serviceWorker.addEventListener('controllerchange',()=>save());} // new worker took over: send it the offline setting
+// ---- new version check: a home-screen app resumes without reloading, so ask the server on start/resume ----
+// compares the ETag of index.html; when it changed, reload right away if the app was in the background, else show a tap-to-update bar
+let swReg=null,verTag=null,verAt=0;
+async function verCheck(resume){if(!navigator.onLine||Date.now()-verAt<60000)return;verAt=Date.now();swReg?.update().catch(()=>{});
+  try{const r=await fetch('index.html',{method:'HEAD',cache:'no-store'});const t=r.ok&&(r.headers.get('etag')||r.headers.get('last-modified'));if(!t)return;
+    if(verTag===null){verTag=t;return}if(t===verTag)return;
+    if(resume&&$('edp').style.display!=='block')return location.reload();$('upd').style.display='block'}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)verCheck(true)});
+addEventListener('online',()=>verCheck(false));setInterval(()=>{if(!document.hidden)verCheck(false)},30*60000);verCheck(false);
 // ---- import ----
 function guessType(name,i,n){const m=/^(PZ|LZ|CP\d*|SP|RP)\b/i.exec(name||'');if(m)return m[1].toUpperCase();return i===0?'PZ':i===n-1?'LZ':'CP'+i}
-function setPts(arr){const n=arr.length;S.pts=arr.map((p,i)=>{const t=p.type||guessType(p.name,i,n);
+function setPts(arr){arr=arr.filter(p=>has(p.lat)&&has(p.lon)&&isFinite(+p.lat)&&isFinite(+p.lon)&&Math.abs(+p.lat)<=90&&Math.abs(+p.lon)<=180); // skip blank/bad rows (NaN breaks the map)
+  if(!arr.length)return alert('ไม่พบจุดที่มีพิกัดถูกต้องในไฟล์');const n=arr.length;S.pts=arr.map((p,i)=>{const t=p.type||guessType(p.name,i,n);
   let nm=p.name||'';if(nm.toUpperCase().startsWith(t))nm=nm.slice(t.length).trim();return {type:t,name:nm,lat:+p.lat,lon:+p.lon,alt:p.alt||''}});
   draw();if(n)map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:[80,80]});}
-function parseCSV(t){const rows=t.trim().split(/\r?\n/).map(r=>r.split(','));const h=rows.shift().map(s=>s.trim().toLowerCase());
+function parseCSV(t){const rows=t.replace(/^\uFEFF/,'').trim().split(/\r?\n/).filter(r=>r.trim()).map(r=>r.split(',').map(x=>x.trim()));const h=rows.shift().map(s=>s.trim().toLowerCase());
   const g=(r,k)=>r[h.findIndex(x=>x.startsWith(k))];return rows.map(r=>({type:g(r,'type'),name:g(r,'name'),lat:g(r,'lat'),lon:g(r,'lon'),alt:g(r,'alt')}));}
 function parseXML(t){const d=new DOMParser().parseFromString(t,'text/xml'),out=[];
   const tx=(e,s)=>e.getElementsByTagName(s)[0]?.textContent.trim();
@@ -427,11 +441,11 @@ function parseXML(t){const d=new DOMParser().parseFromString(t,'text/xml'),out=[
   if(!out.length){const ls=d.getElementsByTagName('LineString')[0];if(ls)tx(ls,'coordinates').split(/\s+/).forEach(c=>{const[lo,la]=c.split(',');out.push({lat:la,lon:lo})})}
   return out;}
 async function importFile(f){if(!f)return;let t;
-  if(/\.kmz$/i.test(f.name)){const z=await JSZip.loadAsync(f);const k=Object.keys(z.files).find(n=>/\.kml$/i.test(n));t=await z.file(k).async('string')}
+  if(/\.kmz$/i.test(f.name)){const z=await JSZip.loadAsync(f);const k=Object.keys(z.files).find(n=>/\.kml$/i.test(n));if(!k)return alert('ไม่พบไฟล์ .kml ใน KMZ');t=await z.file(k).async('string')}
   else t=await f.text();
   const arr=/\.csv$/i.test(f.name)?parseCSV(t):parseXML(t);if(!arr.length)return alert('ไม่พบจุดในไฟล์');setPts(arr);}
 // ---- export ----
-function dl(name,txt,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+txt],{type}));a.download=name;a.click()}
+function dl(name,txt,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+txt],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),10000)}
 function exportCSV(){dl('route.csv','type,name,lat,lon,alt_ft\n'+S.pts.map(p=>[p.type,p.name,p.lat,p.lon,p.alt].join(',')).join('\n'),'text/csv')}
 function exportKML(){const L_=legs();
   const pm=S.pts.map(p=>`<Placemark><name>${esc(p.type+' '+p.name)}</name><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`).join('');
