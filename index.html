@@ -121,7 +121,10 @@ body{height:100dvh}
 /* phone landscape: narrow side panel */
 @media (max-height:500px) and (orientation:landscape){
  #side{width:min(300px,42vw);min-width:0}#tog{left:min(300px,42vw)}#edp.lft{left:calc(min(300px,42vw) + 12px)}
- #edp{top:6px;right:6px;max-height:calc(100dvh - 12px)}
+ /* leg/label editor: covers the side panel (like the portrait bottom sheet) so the map stays visible */
+ #edp,#edp.lft{top:0;bottom:0;left:0;right:auto;width:min(300px,42vw);height:100dvh;max-height:none;border-radius:0 12px 12px 0;border-right:2px solid var(--au);box-shadow:4px 0 14px #0007;padding:8px 12px calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));z-index:1100}
+ body.editing #tog{display:none}
+ #edp .edh{float:right;margin:0 -6px 0 8px}#edp .edh button:first-child{display:none}
  #stats b{font-size:18px}#hdr{padding:8px 12px}#prof{padding:6px 12px}
 }
 #upd{display:none;position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:3000;background:#F2B43C;color:#111;font:bold 14px sans-serif;padding:10px 16px;border-radius:20px;box-shadow:0 3px 12px #0008;cursor:pointer}
@@ -333,8 +336,8 @@ function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt
 // ---- editable leg box / label (popup forms) ----
 // edit form lives in a floating panel at the map edge, so it never covers the label/box being adjusted
 let edPrev=null; // phone portrait: remember sheet state, show editor in place of the menu
-function popForm(ll,html){if(isPh()&&edPrev===null){const b=document.body.classList;edPrev=b.contains('full')?'full':b.contains('hide')?'hide':'';b.remove('full','hide');b.add('editing');togTxt();setTimeout(()=>map.invalidateSize(),50)}const e=$('edp');e.innerHTML=`<div class="pop"><div class="edh"><button title="ย้ายไปอีกด้าน" onclick="$('edp').classList.toggle('lft')">⇆</button><button title="ปิด" onclick="closeEd()">✕</button></div>${html}</div>`;e.style.display='block'}
-function closeEd(){const e=$('edp');if(e){e.style.display='none';e.innerHTML=''}if(edPrev!==null){document.body.classList.remove('editing');if(edPrev&&isPh())document.body.classList.add(edPrev);edPrev=null;togTxt();setTimeout(()=>map.invalidateSize(),50)}}
+function popForm(ll,html){if(isSheet()&&edPrev===null){const b=document.body.classList;edPrev=b.contains('full')?'full':b.contains('hide')?'hide':'';b.remove('full','hide');b.add('editing');togTxt();setTimeout(()=>map.invalidateSize(),50)}const e=$('edp');e.innerHTML=`<div class="pop"><div class="edh"><button title="ย้ายไปอีกด้าน" onclick="$('edp').classList.toggle('lft')">⇆</button><button title="ปิด" onclick="closeEd()">✕</button></div>${html}</div>`;e.style.display='block'}
+function closeEd(){const e=$('edp');if(e){e.style.display='none';e.innerHTML=''}if(edPrev!==null){document.body.classList.remove('editing');if(edPrev&&isSheet())document.body.classList.add(edPrev);edPrev=null;togTxt();setTimeout(()=>map.invalidateSize(),50)}}
 function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
   popForm(ll,`<b>Leg ${i+1}: ${esc(a.type)} → ${esc(S.pts[i+1].type)}</b><br><small>เว้นว่าง = คำนวณอัตโนมัติ</small>
    <label>HDG/CRS</label><input id="eC" value="${esc(o.crs)}" placeholder="${pad3(l.tc)}">
@@ -388,6 +391,8 @@ function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;resetBox(i-1,i,i+d-1,i+d);[S
 function ins(i){const a=S.pts[i],b=S.pts[i+1];if(!b)return setMode('map');resetBox(i);
   S.pts.splice(i+1,0,{type:'CP',name:'',lat:+((a.lat+b.lat)/2).toFixed(6),lon:+((a.lon+b.lon)/2).toFixed(6),alt:a.alt});draw()}
 const isPh=()=>matchMedia('(max-width:700px) and (orientation:portrait)').matches;
+// editor replaces the side panel/sheet on phones, portrait or landscape
+const isSheet=()=>isPh()||matchMedia('(max-height:500px) and (orientation:landscape)').matches;
 // desktop/landscape: show <-> hide. phone portrait sheet: half -> full -> hidden -> half
 function togSide(){const b=document.body.classList;
   if(isPh()){if(b.contains('hide'))b.remove('hide');else if(b.contains('full')){b.remove('full');b.add('hide')}else b.add('full')}
