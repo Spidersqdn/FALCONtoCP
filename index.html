@@ -404,7 +404,7 @@ function list(L_,tot,tmin){
 function reverseRoute(){const n=S.pts.length;if(n<2)return;
   const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx,bsc:p.bsc,ln:p.ln,lw:p.lw}));
   S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined,lw:undefined};Object.assign(p,d)});
-  const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2);[f.lcol,z.lcol]=[z.lcol,f.lcol];['lcol'].forEach(k=>{if(f[k]==null)delete f[k];if(z[k]==null)delete z[k]})}
+  const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2);[f.lcol,z.lcol]=[z.lcol,f.lcol];const dc=[COL.PZ,COL.LZ].map(c=>c.toLowerCase());[f,z].forEach(p=>{if(p.lcol==null||dc.includes(String(p.lcol).toLowerCase()))delete p.lcol})}
   draw()}
 function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
 function resetBox(...ix){ix.forEach(k=>{const p=S.pts[k];if(p){delete p.boff;delete p.box}})}
