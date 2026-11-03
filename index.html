@@ -57,9 +57,11 @@ const $=id=>document.getElementById(id);
 let S={pts:[]};try{S=JSON.parse(localStorage.getItem('routeS'))||S}catch(e){}
 const map=L.map('map',{zoomSnap:0.25}).setView([16.12,103.55],11);
 let base=null;
+function pmLayer(u){const p=new pmtiles.PMTiles(u),l=pmtiles.leafletRasterLayer(p,{maxZoom:18,maxNativeZoom:12});
+  p.getHeader().then(h=>{l.options.maxNativeZoom=h.maxZoom;l.options.minNativeZoom=h.minZoom;l.redraw()}).catch(()=>{});return l;}
 function setBase(){ if(base)map.removeLayer(base);
   base=$('osm').checked?L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19})
-    :/\.pmtiles$/i.test($('tileUrl').value)?pmtiles.leafletRasterLayer(new pmtiles.PMTiles($('tileUrl').value),{maxZoom:18,maxNativeZoom:12})
+    :/\.pmtiles$/i.test($('tileUrl').value)?pmLayer($('tileUrl').value)
     :L.tileLayer($('tileUrl').value,{tms:$('tms').checked,maxZoom:18,maxNativeZoom:16,errorTileUrl:''});
   base.addTo(map); save(); }
 const grp=L.layerGroup().addTo(map);
