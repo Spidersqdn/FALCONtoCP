@@ -386,8 +386,8 @@ function editLbl(i){const p=S.pts[i];
    <label>ข้อมูลตาราง (เว้นว่าง = ค่าอัตโนมัติ)</label><div class="g">${(p._auto||[]).map((v,k)=>`<input id="tv${k}" value="${esc((p.tv||[])[k])}" placeholder="${esc(v)}">`).join('')}</div>
    <label>ขนาดป้าย/ตาราง</label>${pctIn('lS',(p.lsc||S.ui.lsc||1)*100,`S.pts[${i}].lsc=this.value/100;draw()`)}
    <label>ขนาดสัญลักษณ์จุด</label>${pctIn('mS',(p.msc||S.ui.msc||1)*100,`S.pts[${i}].msc=this.value/100;draw()`)}
-   <div class="pos"><div><span>LAT/LONG</span><b>${ddm(p.lat)}&nbsp;&nbsp;${ddm(p.lon)}</b></div><div><span>MGRS</span><b>${mgrs(p.lat,p.lon)}</b></div></div>
    <label>เลื่อนตาราง ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tbx||0}" oninput="S.pts[${i}].tbx=+this.value;draw()">
+   <div class="pos"><div><span>LAT/LONG</span><b>${ddm(p.lat)}&nbsp;&nbsp;${ddm(p.lon)}</b></div><div><span>MGRS</span><b>${mgrs(p.lat,p.lon)}</b></div></div>
    <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
    <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','msc','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
 function delPt(i){const p=S.pts[i];if(!confirm('ลบจุด '+(p.type+' '+p.name).trim()+' ? (กด Undo เพื่อย้อนได้)'))return;resetBox(i-1);S.pts.splice(i,1);closeEd();draw()}
