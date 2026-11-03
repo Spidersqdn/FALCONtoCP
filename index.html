@@ -4,6 +4,15 @@
 <link rel="stylesheet" href="lib/leaflet.css"><script src="lib/leaflet.js"></script><script src="lib/jszip.min.js"></script><script src="lib/pmtiles.js"></script><script src="config.js"></script>
 <style>
 :root{--bd:#1F4E79;--bg:#232529;--bg2:#1b1d20;--ln:#34373c;--tx:#e8e8e8;--mu:#9aa0a6;--au:#F2B43C;--cy:#5BC0EB}
+/* map text font: installed TH SarabunPSK (scaled to normal size), else bundled Sarabun (same design, OFL) */
+@font-face{font-family:MapPSK;font-weight:400;src:local("TH SarabunPSK"),local("THSarabunPSK"),local("TH Sarabun New"),local("THSarabunNew");size-adjust:133%}
+@font-face{font-family:MapPSK;font-weight:700;src:local("TH SarabunPSK Bold"),local("THSarabunPSK-Bold"),local("TH Sarabun New Bold"),local("THSarabunNew-Bold");size-adjust:133%}
+@font-face{font-family:MapSar;font-weight:400;font-display:swap;src:url(lib/fonts/sarabun-400-thai.woff2) format("woff2");unicode-range:U+02D7,U+0303,U+0331,U+0E01-0E5B,U+200C-200D,U+25CC}
+@font-face{font-family:MapSar;font-weight:400;font-display:swap;src:url(lib/fonts/sarabun-400-latin.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:MapSar;font-weight:700;font-display:swap;src:url(lib/fonts/sarabun-700-thai.woff2) format("woff2");unicode-range:U+02D7,U+0303,U+0331,U+0E01-0E5B,U+200C-200D,U+25CC}
+@font-face{font-family:MapSar;font-weight:700;font-display:swap;src:url(lib/fonts/sarabun-700-latin.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+:root{--mf:MapPSK,MapSar,Tahoma,sans-serif}
+.leaflet-container,.leaflet-container svg text,.pgn,.pg .inf{font-family:var(--mf)!important}
 *{box-sizing:border-box}body{margin:0;font:13px Tahoma,"Leelawadee UI",sans-serif;display:flex;height:100vh;background:var(--bg2);color:var(--tx)}
 #side{width:clamp(320px,25vw,560px);flex:none;overflow:auto;background:var(--bg);border-right:1px solid #000;scrollbar-color:#555 var(--bg)}
 #map{flex:1;background:#e8e3c8}
@@ -67,8 +76,9 @@ fieldset>*:not(legend){clear:both}
 .num{flex:none;width:20px;height:20px;border-radius:50%;background:var(--au);color:#1b1d20;font:bold 11px Consolas,monospace;display:flex;align-items:center;justify-content:center;border:1.5px solid #1b1d20}
 .btns{display:grid;grid-template-columns:1fr 1fr;gap:2px}.btns button{padding:0 2px;margin:0;font-size:11px;color:var(--cy);line-height:18px}.btns .x{color:#ff6b6b}
 .ed{display:none;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px}.ed.on{display:grid}.ed input{width:100%;padding:4px}
-.mk{width:24px;height:24px;border-radius:50%;background:var(--au);border:2px solid #1b1d20;color:#1b1d20;font:bold 12px Consolas,monospace;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0008}
-.pill{background:#1b1d20e6;color:var(--au);border:1px solid var(--au);border-radius:3px;font:bold 11px Consolas,monospace;padding:1px 5px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
+.pct{display:flex;align-items:center;gap:6px}.pct input[type=range]{flex:1;min-width:0}.pct input[type=number]{width:62px;flex:none}
+.mk{width:24px;height:24px;border-radius:50%;background:var(--au);border:2px solid #1b1d20;color:#1b1d20;font:bold 13px var(--mf);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0008}
+.pill{background:#1b1d20e6;color:var(--au);border:1px solid var(--au);border-radius:3px;font:bold 12px var(--mf);padding:1px 5px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
 #edp{display:none;position:fixed;top:12px;right:12px;width:270px;max-height:calc(100vh - 24px);overflow:auto;background:#fff;color:#222;border-radius:8px;box-shadow:0 4px 18px #0007;padding:10px 12px;z-index:1000;font-size:12px}
 #edp.lft{right:auto;left:calc(clamp(320px,25vw,560px) + 12px)}.edh{display:flex;justify-content:flex-end;gap:4px;margin:-4px -4px 2px}.edh button{background:#eee!important;color:#333!important;border:0;padding:2px 8px}
 .pop input{width:100%;margin:2px 0 6px;padding:4px}.pop label{display:block;color:#333;font-size:11px}.pop button{margin-right:4px;color:#fff}
@@ -105,6 +115,7 @@ fieldset>*:not(legend){clear:both}
   <div class="sm" style="margin-top:10px">รูปแบบเส้นทาง</div>
   <div class="seg"><button id="sA" onclick="setStyle('anf',1)">NAVIGATION</button><button id="sC" onclick="setStyle('cp',1)">แผนที่แผนสมบูรณ์</button></div>
   <div class="row"><span class="sm" style="flex:none">เส้นทาง</span><select id="lineSt" onchange="S.ui.line=this.value;draw()"><option value="solid">เส้นทึบ</option><option value="dash">เส้นประ</option></select></div>
+  <div class="row"><span class="sm" style="flex:none">ขนาดสัญลักษณ์จุด</span><span id="msBox" style="flex:1"></span></div>
   <label><input type="checkbox" id="shLbl" checked onchange="draw()"> SHOW PZ CPs LZ</label>
   <label><input type="checkbox" id="shBox" checked onchange="draw()"> SHOW DOG LEGs</label>
   <div class="wh" style="margin-top:8px"><span>Waypoint</span><span style="text-align:right">Dist</span><span style="text-align:right">CRS</span><span style="text-align:right">ETE</span><span style="text-align:right">ALT</span><span></span></div>
@@ -172,6 +183,8 @@ function save(){S.cfg={url:$('tileUrl').value,tms:$('tms').checked,kt:$('kt').va
   S.ui.lbl=$('shLbl').checked;S.ui.box=$('shBox').checked;S.ui.off=$('offl').checked;
   try{localStorage.setItem('routeS',JSON.stringify(S))}catch(e){}
   navigator.serviceWorker?.controller?.postMessage({offline:S.ui.off});}
+// slider + numeric % box kept in sync; fn runs with this.value
+function pctIn(id,v,fn){v=Math.round(v);return `<div class="pct"><input id="${id}" type="range" min="20" max="400" step="5" value="${v}" oninput="$('${id}n').value=this.value;${fn}"><input id="${id}n" type="number" min="10" max="1000" step="1" value="${v}" oninput="if(this.value>0){$('${id}').value=this.value;${fn}}"><span>%</span></div>`}
 function shape(t){const c=kind(t);
   if(c==='PZ')return '<svg width="26" height="24"><polygon points="13,2 24,22 2,22" fill="#F5A800" stroke="#1F4E79" stroke-width="2.5"/></svg>';
   if(c==='LZ')return '<svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="#F5A800" stroke="#1F4E79" stroke-width="2.5"/></svg>';
@@ -212,8 +225,8 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     bx.on('click',()=>editBox(i,a.box));
   });
   S.pts.forEach((p,i)=>{ if(i>0){cn+=L_[i-1].nm;cm+=L_[i-1].min}
-    const first=i===0,last=i===n-1,sz=anf?24:kind(p.type)==='CP'?18:26;
-    const mk=L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:anf?`<div class="mk">${i+1}</div>`:shape(p.type),iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
+    const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:kind(p.type)==='CP'?18:26)*ms;
+    const mk=L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
     if(!ro){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()})}
     if(!$('shLbl').checked)return;
@@ -248,7 +261,7 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
    <label>สีกรอบ</label><input id="eK" type="color" value="${o.col||'#1F4E79'}">
    ${(b=>`<label style="color:#333"><input type="checkbox" id="bH" ${b.h?'checked':''} style="width:auto"> สามเหลี่ยมหัว</label><label style="color:#333"><input type="checkbox" id="bT" ${b.t?'checked':''} style="width:auto"> สามเหลี่ยมท้าย</label><label style="color:#333"><input type="checkbox" id="bR" ${b.r?'checked':''} style="width:auto"> แสดงทิศกลับ (${pad3(l.crsNum+180)})</label>`)(Object.assign({h:true,t:true,r:true},a.bx||{}))}
    <label>เส้น leg นี้</label><select id="eLn" onchange="S.pts[${i}].ln=this.value;draw()" style="width:100%"><option value="">ตามค่าหลัก</option><option value="solid" ${a.ln==='solid'?'selected':''}>เส้นทึบ</option><option value="dash" ${a.ln==='dash'?'selected':''}>เส้นประ</option></select>
-   <label>ขนาดกล่อง <span id="bSv">${Math.round((a.bsc||S.ui.bsc||1)*100)}%</span></label><input id="bS" type="range" min="40" max="300" step="5" value="${Math.round((a.bsc||S.ui.bsc||1)*100)}" oninput="S.pts[${i}].bsc=this.value/100;$('bSv').textContent=this.value+'%';draw()">
+   <label>ขนาดกล่อง</label>${pctIn('bS',(a.bsc||S.ui.bsc||1)*100,`S.pts[${i}].bsc=this.value/100;draw()`)}
    <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบ/ขนาดกล่องนี้กับทุก leg</label>
    <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};closeEd();draw()">คืนค่าอัตโนมัติ</button>`)}
 function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked,r:$('bR').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.pts.forEach(p=>{p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),col:$('eK').value};a.alt=$('eA').value.trim();closeEd();draw()}
@@ -258,14 +271,15 @@ function editLbl(i){const p=S.pts[i];
    <label>สีพื้น</label><input id="eK" type="color" value="${p.lcol||col(p.type)}">
    <label style="color:#333"><input type="checkbox" id="eH" ${p.noTbl?'checked':''} style="width:auto"> ซ่อนตาราง TOTAL/ACTUAL/REMAIN</label>
    <label>ข้อมูลตาราง (เว้นว่าง = ค่าอัตโนมัติ)</label><div class="g">${(p._auto||[]).map((v,k)=>`<input id="tv${k}" value="${esc((p.tv||[])[k])}" placeholder="${esc(v)}">`).join('')}</div>
-   <label>ขนาด <span id="lSv">${Math.round((p.lsc||S.ui.lsc||1)*100)}%</span></label><input id="lS" type="range" min="40" max="300" step="5" value="${Math.round((p.lsc||S.ui.lsc||1)*100)}" oninput="S.pts[${i}].lsc=this.value/100;$('lSv').textContent=this.value+'%';draw()">
+   <label>ขนาดป้าย/ตาราง</label>${pctIn('lS',(p.lsc||S.ui.lsc||1)*100,`S.pts[${i}].lsc=this.value/100;draw()`)}
+   <label>ขนาดสัญลักษณ์จุด</label>${pctIn('mS',(p.msc||S.ui.msc||1)*100,`S.pts[${i}].msc=this.value/100;draw()`)}
    <label>เลื่อนหัวชื่อ ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tdx||0}" oninput="S.pts[${i}].tdx=+this.value;draw()">
    <label>เลื่อนตาราง ซ้าย/ขวา</label><input type="range" min="-200" max="200" value="${p.tbx||0}" oninput="S.pts[${i}].tbx=+this.value;draw()">
    <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
-   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','tdx','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
+   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','msc','tdx','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
 function delPt(i){const p=S.pts[i];if(!confirm('ลบจุด '+(p.type+' '+p.name).trim()+' ? (กด Undo เพื่อย้อนได้)'))return;resetBox(i-1);S.pts.splice(i,1);closeEd();draw()}
 function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
-  if($('lAll').checked){S.ui.lsc=p.lsc;S.pts.forEach(q=>{delete q.lsc;q.tdx=p.tdx;q.tbx=p.tbx})}closeEd();draw()}
+  if($('lAll').checked){S.ui.lsc=p.lsc;S.ui.msc=p.msc;S.pts.forEach(q=>{delete q.lsc;delete q.msc;q.tdx=p.tdx;q.tbx=p.tbx})}closeEd();draw()}
 // ---- waypoint list (AirNavFlow style) ----
 function list(L_,tot,tmin){
   $('wpl').innerHTML=S.pts.map((p,i)=>{const l=L_[i-1];return `<li><div class="wr">
@@ -412,5 +426,5 @@ if(!S.pts.length)S.pts=[{type:'PZ',name:'ท่าอากาศยานร้
 if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^https?:/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
 [...(window.CONFIG&&CONFIG.MAPS||[]),{name:'OpenStreetMap (offline cache)',url:'osm'}].forEach(m=>$('mapSel').add(new Option(m.name,m.url)));
 $('mapSel').add(new Option('-- URL เอง --',''));$('mapSel').value=$('tileUrl').value===OSM?'osm':$('tileUrl').value;
-setMode(S.ui.mode);setStyle(S.ui.style);setBase();map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:[120,120]});cacheInfo();
+$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,'S.ui.msc=this.value/100;S.pts.forEach(q=>delete q.msc);draw()');setMode(S.ui.mode);setStyle(S.ui.style);setBase();map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:[120,120]});cacheInfo();
 </script></body></html>
