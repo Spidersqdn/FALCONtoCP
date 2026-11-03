@@ -164,11 +164,14 @@ function draw(){snap();grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui
     if(!a.box)a.box=[(a.lat+b.lat)/2-0.04,(a.lon+b.lon)/2];
     const bc=l.o.col||'#1F4E79';
     const bo=Object.assign({h:true,t:true,r:true},a.bx||{});
-    const vals=[l.crsTxt,Math.round(l.nm*10)/10+' NM',hm(l.min),has(a.alt)?a.alt+"'":'-'];if(bo.r)vals.push(pad3(l.crsNum+180));
-    const cells=vals.map((t,k)=>`<div class="c${k===0&&!bo.h?' f':''}${k===vals.length-1&&bo.t?' l':''}${bo.r&&k===4?' r':''}" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
-    const h=Math.max(44,Math.max(...vals.map(v=>String(v).length))*7.5+12),sc=a.bsc||S.ui.bsc||1;
+    // heading sits inside the head triangle, reciprocal inside the tail triangle (as cells if a triangle is off)
+    const hd=l.crsTxt,rc=bo.r?pad3(l.crsNum+180):null;
+    const vals=[...(bo.h?[]:[hd]),Math.round(l.nm*10)/10+' NM',hm(l.min),has(a.alt)?a.alt+"'":'-',...(rc&&!bo.t?[rc]:[])];
+    const cells=vals.map((t,k)=>`<div class="c${k===0&&!bo.h?' f':''}${k===vals.length-1&&bo.t?' l':''}" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
+    const tipLen=Math.max(String(hd).length,rc?rc.length:0);
+    const h=Math.max(44,Math.max(...vals.map(v=>String(v).length))*7.5+12,(bo.h||bo.t)?(tipLen*7.5+12)/0.62:0),sc=a.bsc||S.ui.bsc||1;
     const bx=L.marker(a.box,{draggable:true,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg) scale(${sc})"><div class="box" style="--bd:${bc};--h:${h}px">${bo.h?tipSvg(h,bc,0):''}${cells}${bo.t?tipSvg(h,bc,1):''}</div></div>`})}).addTo(grp);
+      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg) scale(${sc})"><div class="box" style="--bd:${bc};--h:${h}px">${bo.h?tipSvg(h,bc,0,hd):''}${cells}${bo.t?tipSvg(h,bc,1,rc):''}</div></div>`})}).addTo(grp);
     bx.on('dragend',e=>{const q=e.target.getLatLng();a.box=[q.lat,q.lng];draw()});
     bx.on('click',()=>editBox(i,a.box));
   });
@@ -189,8 +192,10 @@ function draw(){snap();grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui
     lb.on('click',()=>editLbl(i));
   });
   list(L_,tot,tmin);save();}
-function tipSvg(h,c,tail){const m=h/2,p=tail?`0,1.5 18.5,${m} 0,${h-1.5}`:`20,1.5 1.5,${m} 20,${h-1.5}`,f=p;
-  return `<svg width="20" height="${h}"><polygon points="${f}" fill="#fff"/><polyline points="${p}" fill="none" stroke="${c}" stroke-width="3" stroke-linejoin="miter"/></svg>`}
+function tipSvg(h,c,tail,txt){const w=Math.round(h*0.75),m=h/2,x0=1.5,x1=w-1.5;
+  const p=tail?`${x0},1.5 ${x1},${m} ${x0},${h-1.5}`:`${x1},1.5 ${x0},${m} ${x1},${h-1.5}`,tx=tail?w*0.3:w*0.7;
+  const t=has(txt)?`<text x="${tx}" y="${m}" transform="rotate(-90 ${tx} ${m})" text-anchor="middle" dominant-baseline="central" font-size="12" font-family="Tahoma,sans-serif" fill="#000">${esc(txt)}</text>`:'';
+  return `<svg width="${w}" height="${h}"><polygon points="${p}" fill="#fff" stroke="${c}" stroke-width="3" stroke-linejoin="miter"/>${t}</svg>`}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 // ---- editable leg box / label (popup forms) ----
 function popForm(ll,html){L.popup({className:'pop',minWidth:220,maxHeight:440}).setLatLng(ll).setContent(`<div class="pop">${html}</div>`).openOn(map)}
