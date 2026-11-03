@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FalCon2CP</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="icon" href="icon-192.png" sizes="192x192"><link rel="apple-touch-icon" href="icon-192.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1b1d20">
 <link rel="stylesheet" href="lib/leaflet.css"><script src="lib/leaflet.js"></script><script src="lib/jszip.min.js"></script><script src="lib/pmtiles.js"></script><script src="config.js"></script>
 <style>
 :root{--bd:#1F4E79;--bg:#232529;--bg2:#1b1d20;--ln:#34373c;--tx:#e8e8e8;--mu:#9aa0a6;--au:#F2B43C;--cy:#5BC0EB}
@@ -88,7 +89,7 @@ fieldset>*:not(legend){clear:both}
 .box,.lbl{cursor:pointer}
 </style></head><body>
 <div id="side">
- <div id="hdr"><b>FalCon2CP</b><small>ROUTE PLANNER · PZ / CP / LZ</small></div>
+ <div id="hdr"><b><img src="icon.svg" alt="" style="width:22px;height:22px;vertical-align:-4px;margin-right:6px">FalCon2CP</b><small>ROUTE PLANNER · PZ / CP / LZ</small></div>
  <div id="stats"><div>Distance<b id="stD">-</b></div><div>Flight Time<b id="stT">-</b></div><div>Waypoints<b id="stN">-</b></div><div>GS (KTS)<b><input id="kt" type="number" min="1" value="120" title="Ground speed"></b></div></div>
  <div id="prof"><div class="ph"><b>Elevation Profile</b><span id="prM"></span></div><div id="prG"></div></div>
  <fieldset><legend>MAP</legend>

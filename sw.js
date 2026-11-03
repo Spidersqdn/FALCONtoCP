@@ -1,6 +1,6 @@
 // Offline cache: app files + map tiles (OSM tiles and PMTiles byte ranges) viewed while online.
-const APP='app-v3',TILES='tiles';
-const SHELL=['./','index.html','config.js','lib/leaflet.js','lib/leaflet.css','lib/pmtiles.js','lib/jszip.min.js','lib/fonts/sarabun-400-thai.woff2','lib/fonts/sarabun-400-latin.woff2','lib/fonts/sarabun-700-thai.woff2','lib/fonts/sarabun-700-latin.woff2'];
+const APP='app-v4',TILES='tiles';
+const SHELL=['./','index.html','config.js','lib/leaflet.js','lib/leaflet.css','lib/pmtiles.js','lib/jszip.min.js','icon.svg','icon-192.png','manifest.webmanifest','lib/fonts/sarabun-400-thai.woff2','lib/fonts/sarabun-400-latin.woff2','lib/fonts/sarabun-700-thai.woff2','lib/fonts/sarabun-700-latin.woff2'];
 let offline=true;
 self.addEventListener('install',e=>{e.waitUntil(caches.open(APP).then(c=>c.addAll(SHELL)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==APP&&n!==TILES).map(n=>caches.delete(n)))).then(()=>self.clients.claim()))});
