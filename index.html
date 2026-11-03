@@ -85,6 +85,7 @@ fieldset>*:not(legend){clear:both}
 .pill{background:#1b1d20e6;color:var(--au);border:1px solid var(--au);border-radius:3px;font:bold 12px var(--mf);padding:1px 5px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
 #edp{display:none;position:fixed;top:12px;right:12px;width:270px;max-height:calc(100vh - 24px);overflow:auto;background:#fff;color:#222;border-radius:8px;box-shadow:0 4px 18px #0007;padding:10px 12px;z-index:1000;font-size:12px}
 #edp.lft{right:auto;left:calc(clamp(320px,25vw,560px) + 12px)}.edh{display:flex;justify-content:flex-end;gap:4px;margin:-4px -4px 2px}.edh button{background:#eee!important;color:#333!important;border:0;padding:2px 8px}
+.edh .grip{flex:1;cursor:move;user-select:none;touch-action:none;color:#888;font-size:11px;align-self:center;padding:2px 0}.edh .grip:hover{color:#333}
 #edp input:not([type=checkbox]):not([type=range]),#edp select{background:#eceef1;color:#111;border:1px solid #b9bec5}#edp input::placeholder{color:#6b7078}
 .pop input{width:100%;margin:2px 0 6px;padding:4px}.pop label{display:block;color:#333;font-size:11px}.pop button{margin-right:4px;color:#fff}
 .box,.lbl{cursor:pointer}
@@ -343,7 +344,19 @@ function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt
 // ---- editable leg box / label (popup forms) ----
 // edit form lives in a floating panel at the map edge, so it never covers the label/box being adjusted
 let edPrev=null; // phone portrait: remember sheet state, show editor in place of the menu
-function popForm(ll,html){if(isSheet()&&edPrev===null){const b=document.body.classList;edPrev=b.contains('full')?'full':b.contains('hide')?'hide':'';b.remove('full','hide');b.add('editing');togTxt();setTimeout(()=>map.invalidateSize(),50)}const e=$('edp');e.innerHTML=`<div class="pop"><div class="edh"><button title="ย้ายไปอีกด้าน" onclick="$('edp').classList.toggle('lft')">⇆</button><button title="ปิด" onclick="closeEd()">✕</button></div>${html}</div>`;e.style.width=isSheet()&&!isPh()?$('side').offsetWidth+'px':'';e.style.display='block'}
+function popForm(ll,html){if(isSheet()&&edPrev===null){const b=document.body.classList;edPrev=b.contains('full')?'full':b.contains('hide')?'hide':'';b.remove('full','hide');b.add('editing');togTxt();setTimeout(()=>map.invalidateSize(),50)}const e=$('edp');e.innerHTML=`<div class="pop"><div class="edh">${isSheet()?'':'<span class="grip" title="ลากเพื่อย้ายกล่อง">⠿ ลากย้าย</span>'}<button title="ย้ายไปอีกด้าน" onclick="edPos=null;edPlace();$('edp').classList.toggle('lft')">⇆</button><button title="ปิด" onclick="closeEd()">✕</button></div>${html}</div>`;e.style.width=isSheet()&&!isPh()?$('side').offsetWidth+'px':'';e.style.display='block';edPlace()}
+// desktop: drag the editor by its header; position is kept for later opens
+let edPos=null;
+function edPlace(){const e=$('edp');if(!e)return;const on=edPos&&!isSheet();
+  if(!on){e.style.left=e.style.top=e.style.right='';return}
+  const w=e.offsetWidth||270,h=Math.min(e.offsetHeight||200,innerHeight-24);
+  edPos=[Math.min(Math.max(0,edPos[0]),innerWidth-w),Math.min(Math.max(0,edPos[1]),innerHeight-h)];
+  e.style.right='auto';e.style.left=edPos[0]+'px';e.style.top=edPos[1]+'px'}
+document.addEventListener('pointerdown',ev=>{const hd=ev.target.closest('#edp .edh');if(!hd||ev.target.closest('button')||isSheet())return;
+  const e=$('edp'),r=e.getBoundingClientRect(),dx=ev.clientX-r.left,dy=ev.clientY-r.top;ev.preventDefault();
+  const mv=m=>{edPos=[m.clientX-dx,m.clientY-dy];edPlace()},up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up)};
+  addEventListener('pointermove',mv);addEventListener('pointerup',up)});
+addEventListener('resize',()=>edPos&&edPlace());
 function closeEd(){const e=$('edp');if(e){e.style.display='none';e.innerHTML=''}if(edPrev!==null){document.body.classList.remove('editing');if(edPrev&&isSheet())document.body.classList.add(edPrev);edPrev=null;togTxt();setTimeout(()=>map.invalidateSize(),50)}}
 function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
   popForm(ll,`<b>Leg ${i+1}: ${esc(a.type)} → ${esc(S.pts[i+1].type)}</b><br><small>เว้นว่าง = คำนวณอัตโนมัติ</small>
