@@ -38,24 +38,57 @@ fieldset label{display:block;margin:4px 0}
 .hint{color:var(--mu);font-size:12px;padding:0 14px 14px}
 #side>button{margin:12px 14px 8px;width:calc(100% - 28px)}
 @media print{#side{display:none}}
+fieldset>*:not(legend){clear:both}
+.row{display:flex;gap:6px;align-items:center;margin:4px 0}.row>*{flex:1;min-width:0}
+.seg{display:flex;gap:4px;margin-bottom:8px}.seg button{flex:1;padding:5px 4px;font-size:12px}.seg button.on{background:var(--cy);border-color:var(--cy);color:#10161a;font-weight:bold}
+.sm{font-size:11px;color:var(--mu);margin:6px 0 2px}
+.wl{list-style:none;margin:0;padding:0}.wl li{border-bottom:1px solid var(--ln);padding:7px 0}
+.wh,.wr{display:grid;grid-template-columns:minmax(0,1fr) 40px 40px 38px 40px 54px;gap:4px;align-items:center}
+.wh{color:var(--mu);font-size:11px;padding:4px 0;border-bottom:1px solid var(--ln)}
+.wr .v{font:12px Consolas,monospace;text-align:right}.wr .nm{display:flex;gap:6px;align-items:center;min-width:0}
+.wr .nm>div{flex:1;overflow:hidden}.wr .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wr .sub{color:var(--mu);font-size:11px}
+.num{flex:none;width:20px;height:20px;border-radius:50%;background:var(--au);color:#1b1d20;font:bold 11px Consolas,monospace;display:flex;align-items:center;justify-content:center;border:1.5px solid #1b1d20}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:2px}.btns button{padding:0 2px;margin:0;font-size:11px;color:var(--cy);line-height:18px}.btns .x{color:#ff6b6b}
+.ed{display:none;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px}.ed.on{display:grid}.ed input{width:100%;padding:4px}
+.mk{width:24px;height:24px;border-radius:50%;background:var(--au);border:2px solid #1b1d20;color:#1b1d20;font:bold 12px Consolas,monospace;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0008}
+.pill{background:#1b1d20e6;color:var(--au);border:1px solid var(--au);border-radius:3px;font:bold 11px Consolas,monospace;padding:1px 5px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
+.pop input{width:100%;margin:2px 0 6px;padding:4px}.pop label{display:block;color:#333;font-size:11px}.pop button{margin-right:4px;color:#fff}
+.box,.lbl{cursor:pointer}
 </style></head><body>
 <div id="side">
  <div id="hdr"><b>FalconView CP</b><small>ROUTE PLANNER · PZ / CP / LZ</small></div>
- <div id="stats"><div>Distance<b id="stD">-</b></div><div>Flight Time<b id="stT">-</b></div><div>Waypoints<b id="stN">-</b></div><div>GS<b id="stK">-</b></div></div>
- <fieldset><legend>แผนที่ (tiles)</legend>
-  <select id="mapSel" style="width:100%" onchange="if(this.value){$('tileUrl').value=this.value;$('osm').checked=false;setBase()}"><option value="">-- เลือกแผนที่ --</option></select>
-  URL <input id="tileUrl" style="width:100%" value="map.pmtiles" placeholder="map.pmtiles หรือ tiles/{z}/{x}/{y}.png">
-  <label><input type="checkbox" id="tms"> TMS (gdal2tiles ไม่ได้ใส่ --xyz)</label>
-  <label><input type="checkbox" id="osm"> OSM ออนไลน์ (ทดสอบ)</label>
-  <button class="pri" onclick="setBase()">โหลดแผนที่</button>
+ <div id="stats"><div>Distance<b id="stD">-</b></div><div>Flight Time<b id="stT">-</b></div><div>Waypoints<b id="stN">-</b></div><div>Highest ALT<b id="stA">-</b></div></div>
+ <fieldset><legend>แผนที่</legend>
+  <select id="mapSel" style="width:100%" onchange="pickMap(this.value)"></select>
+  <label><input type="checkbox" id="offl" checked onchange="save()"> เก็บแผนที่ที่เปิดดูไว้ใช้ offline</label>
+  <div class="sm" id="cacheInfo">-</div>
+  <button onclick="clearCache()">ล้าง cache แผนที่</button>
+  <details><summary class="sm">ขั้นสูง: URL แผนที่เอง</summary>
+   <input id="tileUrl" style="width:100%" value="map.pmtiles" placeholder="map.pmtiles หรือ tiles/{z}/{x}/{y}.png">
+   <label><input type="checkbox" id="tms"> TMS (gdal2tiles ไม่ได้ใส่ --xyz)</label>
+   <button class="pri" onclick="$('mapSel').value='';setBase()">โหลด URL นี้</button>
+  </details>
  </fieldset>
  <fieldset><legend>ค่าการบิน</legend>
   GS <input id="kt" class="s" type="number" value="90"> kt &nbsp; VAR <input id="var" class="s" type="number" step="0.1" value="0"> (E=+)
-  &nbsp;<label><input type="checkbox" id="mag"> แสดงเป็น MH</label>
+  <label><input type="checkbox" id="mag"> แสดงเป็น MH</label>
  </fieldset>
- <fieldset><legend>จุด (คลิกบนแผนที่เพื่อเพิ่ม, ลากจุด/ป้าย/กล่องได้)</legend>
-  <table class="wp"><thead><tr><th>Type</th><th>Name</th><th>Lat</th><th>Lon</th><th>Alt ft</th><th></th></tr></thead><tbody id="wpb"></tbody></table>
-  <div id="legs"></div>
+ <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
+  <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
+  <div id="llBox" style="display:none"><div class="sm">Lat / Lon (เช่น 16.1168 หรือ N16 07.01)</div>
+   <div class="row"><input id="fLat" placeholder="Lat"><input id="fLon" placeholder="Lon"></div></div>
+  <div class="row"><div><div class="sm">Type</div><input id="fType" list="types" placeholder="อัตโนมัติ"></div>
+   <div><div class="sm">ALT ft</div><input id="fAlt" value="1100"></div></div>
+  <datalist id="types"><option>PZ<option>CP<option>LZ<option>SP<option>RP</datalist>
+  <div class="sm">ชื่อจุด / Remark</div><input id="fName" style="width:100%" placeholder="เช่น สนาม ฮ. พล.ร.6">
+  <div class="row" style="margin-top:8px"><button class="pri" onclick="addFromForm()">Add ROUTE</button></div>
+  <div class="sm" id="modeHint"></div>
+  <div class="sm" style="margin-top:10px">รูปแบบเส้นทาง</div>
+  <div class="seg"><button id="sA" onclick="setStyle('anf')">AirNavFlow</button><button id="sC" onclick="setStyle('cp')">แผนที่ CP</button></div>
+  <label><input type="checkbox" id="shLbl" checked onchange="draw()"> แสดงป้ายจุด + ตาราง TOTAL/ACTUAL/REMAIN</label>
+  <label><input type="checkbox" id="shBox" checked onchange="draw()"> แสดงกล่องข้อมูล leg (คลิกกล่องเพื่อแก้ไข)</label>
+  <div class="wh" style="margin-top:8px"><span>Waypoint</span><span style="text-align:right">Dist</span><span style="text-align:right">CRS</span><span style="text-align:right">ETE</span><span style="text-align:right">ALT</span><span></span></div>
+  <ul class="wl" id="wpl"></ul>
  </fieldset>
  <fieldset><legend>ไฟล์</legend>
   <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]);this.value=''">
@@ -64,21 +97,24 @@ fieldset label{display:block;margin:4px 0}
   <button onclick="if(confirm('ลบทุกจุด?')){S.pts=[];draw()}">ล้าง</button>
  </fieldset>
  <button onclick="document.body.classList.add('hide');map.invalidateSize()">ซ่อนแถบ (กด Esc เพื่อแสดง) แล้วจับภาพ/Print</button>
- <p class="hint">PZ = ▲ ชมพู, CP = □ เขียว, LZ = ● เหลือง. เวลา = H:MM. ข้อมูลบันทึกในเบราว์เซอร์อัตโนมัติ</p>
+ <p class="hint">On MAP: คลิกแผนที่เพื่อเพิ่มจุด · ลากจุด/ป้าย/กล่องได้ · คลิกกล่อง/ป้ายเพื่อแก้ค่า. ข้อมูลบันทึกในเบราว์เซอร์อัตโนมัติ</p>
 </div>
 <div id="map"></div>
 <script>
 const COL={PZ:'#FF66CC',CP:'#22BB33',LZ:'#FFD700'};
+const OSM='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const $=id=>document.getElementById(id);
 let S={pts:[]};try{S=JSON.parse(localStorage.getItem('routeS'))||S}catch(e){}
+S.ui=Object.assign({mode:'map',style:'anf',lbl:true,box:true,off:true},S.ui||{});
 const map=L.map('map',{zoomSnap:0.25}).setView([16.12,103.55],11);
 let base=null;
 function pmLayer(u){const p=new pmtiles.PMTiles(u),l=pmtiles.leafletRasterLayer(p,{maxZoom:18,maxNativeZoom:12});
   p.getHeader().then(h=>{l.options.maxNativeZoom=h.maxZoom;l.options.minNativeZoom=h.minZoom;l.redraw()}).catch(()=>{});return l;}
-function setBase(){ if(base)map.removeLayer(base);
-  base=$('osm').checked?L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19})
-    :/\.pmtiles$/i.test($('tileUrl').value)?pmLayer($('tileUrl').value)
-    :L.tileLayer($('tileUrl').value,{tms:$('tms').checked,maxZoom:18,maxNativeZoom:16,errorTileUrl:''});
+function pickMap(v){if(v==='osm'){$('tileUrl').value=OSM}else if(v)$('tileUrl').value=v;setBase()}
+function setBase(){ if(base)map.removeLayer(base);const u=$('tileUrl').value;
+  base=u===OSM?L.tileLayer(OSM,{maxZoom:19,crossOrigin:true,attribution:'© OpenStreetMap'})
+    :/\.pmtiles$/i.test(u)?pmLayer(u)
+    :L.tileLayer(u,{tms:$('tms').checked,maxZoom:18,maxNativeZoom:16,errorTileUrl:''});
   base.addTo(map); save(); }
 const grp=L.layerGroup().addTo(map);
 const kind=t=>(t||'').toUpperCase().slice(0,2);
@@ -89,59 +125,116 @@ function legCalc(a,b){const r=Math.PI/180,[p1,l1,p2,l2]=[a.lat*r,a.lon*r,b.lat*r
   return {nm:d*3440.065,tc:(Math.atan2(y,x)/r+360)%360};}
 const hm=m=>{m=Math.round(m);return Math.floor(m/60)+':'+String(m%60).padStart(2,'0')};
 const pad3=x=>String(Math.round(x)%360).padStart(3,'0');
+const has=v=>v!==undefined&&v!==null&&String(v).trim()!=='';
+function parseT(t){if(!has(t))return null;const m=/^(\d+):(\d{1,2})$/.exec(String(t).trim());return m?+m[1]*60+ +m[2]:isNaN(+t)?null:+t}
+// leg values: computed, then user overrides from the leg box (a.ov)
 function legs(){const kt=+$('kt').value||90,v=+$('var').value||0;
-  return S.pts.slice(1).map((b,i)=>{const a=S.pts[i],c=legCalc(a,b);
-    return {...c,crs:$('mag').checked?(c.tc-v+360)%360:c.tc,min:c.nm/kt*60,alt:a.alt}});}
-function save(){S.cfg={url:$('tileUrl').value,tms:$('tms').checked,osm:$('osm').checked,kt:$('kt').value,v:$('var').value,mag:$('mag').checked};
-  try{localStorage.setItem('routeS',JSON.stringify(S))}catch(e){}}
+  return S.pts.slice(1).map((b,i)=>{const a=S.pts[i],c=legCalc(a,b),o=a.ov||{};
+    const crs=$('mag').checked?(c.tc-v+360)%360:c.tc;
+    const nm=has(o.nm)&&!isNaN(+o.nm)?+o.nm:c.nm,min=parseT(o.t)??nm/kt*60;
+    return {tc:c.tc,nm,min,crsTxt:has(o.crs)?o.crs:pad3(crs),alt:a.alt,o}});}
+function save(){S.cfg={url:$('tileUrl').value,tms:$('tms').checked,kt:$('kt').value,v:$('var').value,mag:$('mag').checked};
+  S.ui.lbl=$('shLbl').checked;S.ui.box=$('shBox').checked;S.ui.off=$('offl').checked;
+  try{localStorage.setItem('routeS',JSON.stringify(S))}catch(e){}
+  navigator.serviceWorker?.controller?.postMessage({offline:S.ui.off});}
 function shape(t){const c=kind(t);
   if(c==='PZ')return '<svg width="26" height="24"><polygon points="13,2 24,22 2,22" fill="#F5A800" stroke="#1F4E79" stroke-width="2.5"/></svg>';
   if(c==='LZ')return '<svg width="26" height="26"><circle cx="13" cy="13" r="11" fill="#F5A800" stroke="#1F4E79" stroke-width="2.5"/></svg>';
   return '<svg width="18" height="18"><rect x="2" y="2" width="14" height="14" fill="none" stroke="#000" stroke-width="3"/></svg>';}
-function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length;
+function draw(){grp.clearLayers();const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
   const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
+  // legs first so markers sit on top
+  L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
+    L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:4,opacity:.95}:{color:'#000',weight:3,dashArray:'10 8'}).addTo(grp);
+    if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${+l.nm.toFixed(1)} NM</span>`})}).addTo(grp);
+    if(!$('shBox').checked)return;
+    if(!a.box)a.box=[(a.lat+b.lat)/2-0.04,(a.lon+b.lon)/2];
+    const bc=l.o.col||'#1F4E79';
+    const cells=[l.crsTxt,Math.round(l.nm*10)/10+' NM',hm(l.min),has(a.alt)?a.alt+"'":'-'].map(t=>`<div class="c" style="border-color:${bc}"><span>${esc(t)}</span></div>`).join('');
+    const bx=L.marker(a.box,{draggable:true,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
+      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg)"><div class="box" style="--bd:${bc}"><div class="tip"></div>${cells}</div></div>`})}).addTo(grp);
+    bx.on('dragend',e=>{const q=e.target.getLatLng();a.box=[q.lat,q.lng];draw()});
+    bx.on('click',()=>editBox(i,a.box));
+  });
   S.pts.forEach((p,i)=>{ if(i>0){cn+=L_[i-1].nm;cm+=L_[i-1].min}
-    const first=i===0,last=i===n-1,sz=kind(p.type)==='CP'?18:26;
-    const mk=L.marker([p.lat,p.lon],{draggable:true,icon:L.divIcon({className:'',html:shape(p.type),iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(grp);
+    const first=i===0,last=i===n-1,sz=anf?24:kind(p.type)==='CP'?18:26;
+    const mk=L.marker([p.lat,p.lon],{draggable:true,zIndexOffset:500,icon:L.divIcon({className:'',html:anf?`<div class="mk">${i+1}</div>`:shape(p.type),iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(grp);
+    mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()});
+    if(!$('shLbl').checked)return;
     if(!p.lbl)p.lbl=[p.lat+0.05,p.lon];
-    const tbl=`<table><tr><td></td><td>NM</td><td>MIN</td></tr>
+    const tbl=p.noTbl?'':`<table><tr><td></td><td>NM</td><td>MIN</td></tr>
       <tr><td>TOTAL</td><td>${Math.round(tot)}</td><td>${hm(tmin)}</td></tr>
       <tr><td>ACTUAL</td><td>${first?'-':Math.round(cn)}</td><td>${first?'-':hm(cm)}</td></tr>
       <tr><td>REMAIN</td><td>${last?'-':Math.round(tot-cn)}</td><td>${last?'-':hm(tmin-cm)}</td></tr></table>`;
     L.polyline([[p.lat,p.lon],p.lbl],{color:'#000',weight:2}).addTo(grp);
     const lb=L.marker(p.lbl,{draggable:true,icon:L.divIcon({className:'lbl',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%)"><div class="t" style="background:${col(p.type)}">${esc(p.type)} ${esc(p.name)}</div>${tbl}</div>`})}).addTo(grp);
+      html:`<div style="transform:translate(-50%,-50%)"><div class="t" style="background:${p.lcol||col(p.type)}">${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}</div>${tbl}</div>`})}).addTo(grp);
     lb.on('dragend',e=>{const q=e.target.getLatLng();p.lbl=[q.lat,q.lng];draw()});
+    lb.on('click',()=>editLbl(i));
   });
-  L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
-    L.polyline([[a.lat,a.lon],[b.lat,b.lon]],{color:'#000',weight:3,dashArray:'10 8'}).addTo(grp);
-    if(!a.box)a.box=[(a.lat+b.lat)/2-0.04,(a.lon+b.lon)/2];
-    const cells=[pad3(l.crs),Math.round(l.nm)+' NM',hm(l.min),a.alt?a.alt+"'":'-'].map(t=>`<div class="c"><span>${t}</span></div>`).join('');
-    const bx=L.marker(a.box,{draggable:true,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%) rotate(${l.tc-270}deg)"><div class="box"><div class="tip"></div>${cells}</div></div>`})}).addTo(grp);
-    bx.on('dragend',e=>{const q=e.target.getLatLng();a.box=[q.lat,q.lng];draw()});
-  });
-  table(L_,tot,tmin);save();}
+  list(L_,tot,tmin);save();}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-function table(L_,tot,tmin){
-  $('wpb').innerHTML=S.pts.map((p,i)=>`<tr>
-   <td><input value="${esc(p.type)}" style="width:40px" onchange="S.pts[${i}].type=this.value;draw()"></td>
-   <td><input value="${esc(p.name)}" onchange="S.pts[${i}].name=this.value;draw()"></td>
-   <td><input value="${p.lat}" onchange="S.pts[${i}].lat=+this.value;draw()"></td>
-   <td><input value="${p.lon}" onchange="S.pts[${i}].lon=+this.value;draw()"></td>
-   <td><input value="${esc(p.alt)}" style="width:44px" onchange="S.pts[${i}].alt=this.value;draw()"></td>
-   <td style="white-space:nowrap"><button onclick="mv(${i},-1)">↑</button><button onclick="S.pts.splice(${i},1);draw()">✕</button></td></tr>`).join('');
-  $('legs').innerHTML=L_.map((l,i)=>`<div>Leg ${i+1} ${esc(S.pts[i].type)}→${esc(S.pts[i+1].type)}: <b>${pad3(l.crs)}°</b> ${l.nm.toFixed(1)} NM ${hm(l.min)}</div>`).join('')
-    +(L_.length?`<div><b>TOTAL ${tot.toFixed(1)} NM ${hm(tmin)}</b></div>`:'');
-  $('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;$('stK').textContent=(+$('kt').value||90)+' kt';}
-function mv(i,d){if(i+d<0)return;[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
-map.on('click',e=>{const n=S.pts.length;
-  const type=prompt('Type (PZ / CP1 / CP2 / LZ)',n?('CP'+n):'PZ');if(!type)return;
-  const name=prompt('ชื่อจุด','')??'';const alt=prompt('ความสูง leg ที่ออกจากจุดนี้ (ft)','1100')??'';
-  S.pts.push({type,name,lat:+e.latlng.lat.toFixed(6),lon:+e.latlng.lng.toFixed(6),alt});draw()});
+// ---- editable leg box / label (popup forms) ----
+function popForm(ll,html){L.popup({className:'pop',minWidth:200}).setLatLng(ll).setContent(`<div class="pop">${html}</div>`).openOn(map)}
+function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
+  popForm(ll,`<b>Leg ${i+1}: ${esc(a.type)} → ${esc(S.pts[i+1].type)}</b><br><small>เว้นว่าง = คำนวณอัตโนมัติ</small>
+   <label>HDG/CRS</label><input id="eC" value="${esc(o.crs)}" placeholder="${pad3(l.tc)}">
+   <label>NM</label><input id="eN" value="${esc(o.nm)}" placeholder="${l.nm.toFixed(1)}">
+   <label>เวลา (H:MM หรือ นาที)</label><input id="eT" value="${esc(o.t)}" placeholder="${hm(l.min)}">
+   <label>ALT ft</label><input id="eA" value="${esc(a.alt)}">
+   <label>สีกรอบ</label><input id="eK" type="color" value="${o.col||'#1F4E79'}">
+   <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};map.closePopup();draw()">คืนค่าอัตโนมัติ</button>`)}
+function saveBox(i){const a=S.pts[i];a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),col:$('eK').value};a.alt=$('eA').value.trim();map.closePopup();draw()}
+function editLbl(i){const p=S.pts[i];
+  popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
+   <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(p.ltxt)}" placeholder="${esc(p.type+' '+p.name)}">
+   <label>สีพื้น</label><input id="eK" type="color" value="${p.lcol||col(p.type)}">
+   <label style="color:#333"><input type="checkbox" id="eH" ${p.noTbl?'checked':''} style="width:auto"> ซ่อนตาราง TOTAL/ACTUAL/REMAIN</label>
+   <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="delete S.pts[${i}].ltxt;delete S.pts[${i}].lcol;delete S.pts[${i}].noTbl;map.closePopup();draw()">คืนค่าเดิม</button>`)}
+function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;p.noTbl=$('eH').checked;map.closePopup();draw()}
+// ---- waypoint list (AirNavFlow style) ----
+function list(L_,tot,tmin){
+  $('wpl').innerHTML=S.pts.map((p,i)=>{const l=L_[i-1];return `<li><div class="wr">
+   <div class="nm"><span class="num">${i+1}</span><div style="min-width:0"><b>${esc(p.type)} ${esc(p.name)}</b><div class="sub">${(+p.lat).toFixed(4)}, ${(+p.lon).toFixed(4)}</div></div></div>
+   <span class="v">${l?l.nm.toFixed(1):''}</span><span class="v">${l?esc(l.crsTxt)+'°':''}</span><span class="v">${l?hm(l.min):''}</span><span class="v">${esc(p.alt)}</span>
+   <div class="btns"><button onclick="mv(${i},-1)" title="เลื่อนขึ้น">↑</button><button class="x" onclick="S.pts.splice(${i},1);draw()" title="ลบ">✕</button>
+    <button onclick="mv(${i},1)" title="เลื่อนลง">↓</button><button onclick="ins(${i})" title="แทรกจุดถัดไป">↓+</button>
+    <button onclick="this.closest('li').querySelector('.ed').classList.toggle('on')" title="แก้ไข" style="grid-column:span 2">✎</button></div></div>
+   <div class="ed"><input value="${esc(p.type)}" title="Type" onchange="S.pts[${i}].type=this.value;draw()"><input value="${esc(p.name)}" title="Name" onchange="S.pts[${i}].name=this.value;draw()" style="grid-column:span 2">
+    <input value="${esc(p.alt)}" title="ALT" onchange="S.pts[${i}].alt=this.value;draw()"><span></span>
+    <input value="${p.lat}" title="Lat" onchange="setLL(${i},'lat',this.value)" style="grid-column:span 2"><input value="${p.lon}" title="Lon" onchange="setLL(${i},'lon',this.value)" style="grid-column:span 2"></div></li>`}).join('')
+    +(L_.length?`<li class="v" style="color:var(--au);font:bold 12px Consolas,monospace">TOTAL ${tot.toFixed(1)} NM · ${hm(tmin)}</li>`:'');
+  const alts=S.pts.map(p=>parseFloat(p.alt)).filter(x=>!isNaN(x));
+  $('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;$('stA').textContent=alts.length?Math.max(...alts)+' ft':'-';}
+function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
+function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
+function ins(i){const a=S.pts[i],b=S.pts[i+1];if(!b)return setMode('map');
+  S.pts.splice(i+1,0,{type:'CP',name:'',lat:+((a.lat+b.lat)/2).toFixed(6),lon:+((a.lon+b.lon)/2).toFixed(6),alt:a.alt});draw()}
+// ---- add waypoint (On MAP / LAT-LONG) ----
+function parseCoord(v){v=String(v).trim().toUpperCase();if(!v)return null;
+  const neg=/^[SW-]|[SW]$/.test(v);const n=v.replace(/[NSEW°'"]/g,' ').trim().split(/[\s,]+/).map(Number);
+  if(n.some(isNaN)||!n.length)return null;const d=Math.abs(n[0])+(n[1]||0)/60+(n[2]||0)/3600;return +((neg?-1:1)*d).toFixed(6)}
+function autoType(){if(!S.pts.length)return 'PZ';return 'CP'+(Math.max(0,...S.pts.map(p=>+(/^CP(\d+)/i.exec(p.type)||[0,0])[1]))+1)}
+function addPt(lat,lon){const n=S.pts.length,at=n&&kind(S.pts[n-1].type)==='LZ'?n-1:n; // keep LZ last
+  S.pts.splice(at,0,{type:$('fType').value.trim()||autoType(),name:$('fName').value.trim(),lat:+lat.toFixed(6),lon:+lon.toFixed(6),alt:$('fAlt').value.trim()});
+  $('fName').value='';$('fType').value='';draw()}
+function addFromForm(){if(S.ui.mode==='map')return alert('โหมด On MAP: คลิกบนแผนที่เพื่อวางจุด');
+  const la=parseCoord($('fLat').value),lo=parseCoord($('fLon').value);if(la===null||lo===null)return alert('ใส่ Lat/Lon ให้ถูกต้อง');
+  addPt(la,lo);map.panTo([la,lo]);$('fLat').value=$('fLon').value=''}
+function setMode(m){S.ui.mode=m;$('mOn').classList.toggle('on',m==='map');$('mLL').classList.toggle('on',m==='ll');$('llBox').style.display=m==='ll'?'':'none';
+  $('modeHint').textContent=m==='map'?'คลิกบนแผนที่เพื่อเพิ่มจุดด้วยค่าในฟอร์มนี้':'กรอกพิกัดแล้วกด Add ROUTE';
+  map.getContainer().style.cursor=m==='map'?'crosshair':'';save()}
+function setStyle(s){S.ui.style=s;$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
+map.on('click',e=>{if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
 ['kt','var','mag'].forEach(id=>$(id).onchange=draw);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.body.classList.remove('hide');map.invalidateSize()}});
+// ---- offline cache (service worker) ----
+async function cacheInfo(){try{const k=await caches.open('tiles').then(c=>c.keys());const e=await navigator.storage?.estimate?.();
+  $('cacheInfo').textContent=`เก็บแล้ว ${k.length} ชิ้น`+(e?` · ${(e.usage/1048576).toFixed(0)} MB`:'')}catch(e){$('cacheInfo').textContent='offline ใช้ได้เมื่อเปิดผ่าน https'}}
+async function clearCache(){if(!confirm('ลบแผนที่ที่เก็บไว้ offline ทั้งหมด?'))return;await caches.delete('tiles');cacheInfo()}
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))
+  navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(()=>{save();setInterval(cacheInfo,5000)}).catch(()=>{});
 // ---- import ----
 function guessType(name,i,n){const m=/^(PZ|LZ|CP\d*|SP|RP)\b/i.exec(name||'');if(m)return m[1].toUpperCase();return i===0?'PZ':i===n-1?'LZ':'CP'+i}
 function setPts(arr){const n=arr.length;S.pts=arr.map((p,i)=>{const t=p.type||guessType(p.name,i,n);
@@ -165,13 +258,15 @@ function dl(name,txt,type){const a=document.createElement('a');a.href=URL.create
 function exportCSV(){dl('route.csv','type,name,lat,lon,alt_ft\n'+S.pts.map(p=>[p.type,p.name,p.lat,p.lon,p.alt].join(',')).join('\n'),'text/csv')}
 function exportKML(){const L_=legs();
   const pm=S.pts.map(p=>`<Placemark><name>${esc(p.type+' '+p.name)}</name><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`).join('');
-  const ln=L_.map((l,i)=>`<Placemark><name>Leg ${i+1} ${pad3(l.crs)} ${Math.round(l.nm)}NM ${hm(l.min)} ${S.pts[i].alt||''}</name><Style><LineStyle><color>ff000000</color><width>3</width></LineStyle></Style><LineString><tessellate>1</tessellate><coordinates>${S.pts[i].lon},${S.pts[i].lat},0 ${S.pts[i+1].lon},${S.pts[i+1].lat},0</coordinates></LineString></Placemark>`).join('');
+  const ln=L_.map((l,i)=>`<Placemark><name>Leg ${i+1} ${l.crsTxt} ${Math.round(l.nm)}NM ${hm(l.min)} ${S.pts[i].alt||''}</name><Style><LineStyle><color>ff000000</color><width>3</width></LineStyle></Style><LineString><tessellate>1</tessellate><coordinates>${S.pts[i].lon},${S.pts[i].lat},0 ${S.pts[i+1].lon},${S.pts[i+1].lat},0</coordinates></LineString></Placemark>`).join('');
   dl('route.kml',`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Route</name>${pm}${ln}</Document></kml>`,'application/vnd.google-earth.kml+xml')}
 // ---- init ----
 const qm=new URLSearchParams(location.search).get('map')||(window.CONFIG&&CONFIG.MAP_URL);
-if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.cfg.tms;$('osm').checked=!!S.cfg.osm;$('kt').value=S.cfg.kt||90;$('var').value=S.cfg.v||0;$('mag').checked=!!S.cfg.mag}
+if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.cfg.tms;$('kt').value=S.cfg.kt||90;$('var').value=S.cfg.v||0;$('mag').checked=!!S.cfg.mag;if(S.cfg.osm)$('tileUrl').value=OSM}
+$('shLbl').checked=S.ui.lbl;$('shBox').checked=S.ui.box;$('offl').checked=S.ui.off;
 if(!S.pts.length)S.pts=[{type:'PZ',name:'ท่าอากาศยานร้อยเอ็ด',lat:16.1168,lon:103.7741,alt:'1100'},{type:'CP2',name:'สนาม ฮ. พล.ร.6',lat:16.105,lon:103.545,alt:'1100'},{type:'LZ',name:'สนาม ฮ. รร.สารคามพิทยาคม',lat:16.184,lon:103.3,alt:''}];
-if(qm)$('tileUrl').value=qm;
-(window.CONFIG&&CONFIG.MAPS||[]).forEach(m=>$('mapSel').add(new Option(m.name,m.url)));$('mapSel').value=$('tileUrl').value;
-setBase();draw();map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:[120,120]});
+if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^https?:/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
+[...(window.CONFIG&&CONFIG.MAPS||[]),{name:'OpenStreetMap (offline cache)',url:'osm'}].forEach(m=>$('mapSel').add(new Option(m.name,m.url)));
+$('mapSel').add(new Option('-- URL เอง --',''));$('mapSel').value=$('tileUrl').value===OSM?'osm':$('tileUrl').value;
+setMode(S.ui.mode);setStyle(S.ui.style);setBase();map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:[120,120]});cacheInfo();
 </script></body></html>
