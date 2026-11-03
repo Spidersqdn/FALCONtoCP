@@ -87,6 +87,40 @@ fieldset>*:not(legend){clear:both}
 #edp.lft{right:auto;left:calc(clamp(320px,25vw,560px) + 12px)}.edh{display:flex;justify-content:flex-end;gap:4px;margin:-4px -4px 2px}.edh button{background:#eee!important;color:#333!important;border:0;padding:2px 8px}
 .pop input{width:100%;margin:2px 0 6px;padding:4px}.pop label{display:block;color:#333;font-size:11px}.pop button{margin-right:4px;color:#fff}
 .box,.lbl{cursor:pointer}
+/* ---- responsive: tablet / phone / touch ---- */
+body{height:100dvh}
+#map{min-width:0;min-height:0}fieldset{min-width:0}.row>div>input,.row>div>select{width:100%}
+@media (pointer:coarse){
+ button{min-height:38px;padding:8px 12px}.seg button,.b3 button{min-height:42px}
+ input:not([type=checkbox]):not([type=range]),select{font-size:16px;padding:8px 9px;min-height:40px}
+ input[type=checkbox]{width:20px;height:20px;vertical-align:-5px;margin-right:6px}
+ fieldset label{padding:6px 0}
+ .btns{gap:4px}.btns button{min-height:30px;line-height:28px;font-size:13px;padding:0 4px}
+ .wh,.wr{grid-template-columns:minmax(0,1fr) 40px 40px 38px 40px 66px}
+ .leaflet-touch .leaflet-bar a{width:40px;height:40px;line-height:40px;font-size:20px}
+ #tog{width:28px;height:84px;font-size:14px}
+ .edh button{min-height:34px;padding:4px 12px}
+ .pop input{font-size:16px}
+}
+@media (max-width:1024px){#side{width:min(340px,45vw);min-width:280px}#tog{left:max(min(340px,45vw),280px)}#edp.lft{left:calc(max(min(340px,45vw),280px) + 12px)}}
+/* phone portrait: map on top, panel as bottom sheet */
+@media (max-width:700px) and (orientation:portrait){
+ body{flex-direction:column-reverse}
+ #side{width:100%;min-width:0;height:48dvh;flex:none;border-right:0;border-top:2px solid var(--au)}
+ body.full #side{height:85dvh}
+ #tog{top:auto;bottom:48dvh;left:50%;transform:translateX(-50%);width:96px;height:26px;border:1px solid #000;border-bottom:0;border-radius:10px 10px 0 0;box-shadow:0 -2px 4px #0006;font-size:13px}
+ body.full #tog{bottom:85dvh}body.hide #tog{left:50%;bottom:0}
+ #edp,#edp.lft{top:8px;left:8px;right:8px;width:auto;max-height:calc(52dvh - 40px)}
+ #hdr{padding:10px 14px 8px}#hdr b{font-size:16px}
+ #stats{grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 10px}#stats div{font-size:11px}#stats b{font-size:18px}#stats #kt{width:100%;font-size:18px}
+ fieldset{padding:10px 12px}.hint{padding:0 12px 12px}
+}
+/* phone landscape: narrow side panel */
+@media (max-height:500px) and (orientation:landscape){
+ #side{width:min(300px,42vw);min-width:0}#tog{left:min(300px,42vw)}#edp.lft{left:calc(min(300px,42vw) + 12px)}
+ #edp{top:6px;right:6px;max-height:calc(100dvh - 12px)}
+ #stats b{font-size:18px}#hdr{padding:8px 12px}#prof{padding:6px 12px}
+}
 </style></head><body>
 <div id="side">
  <div id="hdr"><b><img src="icon.svg" alt="" style="width:22px;height:22px;vertical-align:-4px;margin-right:6px">FalCon2CP</b><small>ROUTE PLANNER · PZ / CP / LZ</small></div>
@@ -342,7 +376,14 @@ function resetBox(...ix){ix.forEach(k=>{const p=S.pts[k];if(p){delete p.boff;del
 function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;resetBox(i-1,i,i+d-1,i+d);[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
 function ins(i){const a=S.pts[i],b=S.pts[i+1];if(!b)return setMode('map');resetBox(i);
   S.pts.splice(i+1,0,{type:'CP',name:'',lat:+((a.lat+b.lat)/2).toFixed(6),lon:+((a.lon+b.lon)/2).toFixed(6),alt:a.alt});draw()}
-function togSide(){const h=document.body.classList.toggle('hide');$('tog').textContent=h?'▶':'◀';map.invalidateSize()}
+const isPh=()=>matchMedia('(max-width:700px) and (orientation:portrait)').matches;
+// desktop/landscape: show <-> hide. phone portrait sheet: half -> full -> hidden -> half
+function togSide(){const b=document.body.classList;
+  if(isPh()){if(b.contains('hide'))b.remove('hide');else if(b.contains('full')){b.remove('full');b.add('hide')}else b.add('full')}
+  else{b.remove('full');b.toggle('hide')}
+  togTxt();setTimeout(()=>map.invalidateSize(),50)}
+function togTxt(){const b=document.body.classList;$('tog').textContent=isPh()?(b.contains('hide')?'▲ เมนู':b.contains('full')?'▼':'▲'):(b.contains('hide')?'▶':'◀')}
+addEventListener('resize',()=>{togTxt();map.invalidateSize()});
 // ---- add waypoint (On MAP / LAT-LONG) ----
 function parseCoord(v){v=String(v).trim().toUpperCase();if(!v)return null;
   const neg=/^[SW-]|[SW]$/.test(v);const n=v.replace(/[NSEW°'"]/g,' ').trim().split(/[\s,]+/).map(Number);
@@ -463,5 +504,5 @@ if(!S.pts.length)S.pts=[{type:'PZ',name:'ท่าอากาศยานร้
 if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^https?:/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
 [...(window.CONFIG&&CONFIG.MAPS||[]),{name:'OpenStreetMap (offline cache)',url:'osm'}].forEach(m=>$('mapSel').add(new Option(m.name,m.url)));
 $('mapSel').add(new Option('-- URL เอง --',''));$('mapSel').value=$('tileUrl').value===OSM?'osm':$('tileUrl').value;
-$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,'S.ui.msc=this.value/100;S.pts.forEach(q=>delete q.msc);draw()');setMode(S.ui.mode);setStyle(S.ui.style);setBase();map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:[120,120]});cacheInfo();
+$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,'S.ui.msc=this.value/100;S.pts.forEach(q=>delete q.msc);draw()');setMode(S.ui.mode);setStyle(S.ui.style);setBase();togTxt();map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:innerWidth<700?[30,30]:[120,120]});cacheInfo();
 </script></body></html>
