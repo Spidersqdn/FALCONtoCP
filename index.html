@@ -20,6 +20,14 @@
 body.hide #side{display:none}
 #tog{position:fixed;top:50%;left:clamp(320px,25vw,560px);transform:translateY(-50%);z-index:1001;width:18px;height:64px;background:var(--bg);color:var(--au);border:1px solid #000;border-left:0;border-radius:0 6px 6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;box-shadow:2px 0 4px #0006}
 #tog:hover{background:#3a3d42}body.hide #tog{left:0}
+#sld{position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}
+#sld .sbox{background:var(--bg,#1b1d20);border:1px solid var(--ln,#3d4147);border-radius:8px;padding:12px;width:min(1100px,100%)}
+#sld .shd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}#sld .shd button{width:auto;margin:0;padding:4px 10px}
+#sld .sfm{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#sld .sfm label{font-size:12px;color:var(--mu)}#sld .sfm label.w{grid-column:1/-1}#sld .sfm input{width:100%;margin-top:2px}
+#sld .sbt{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}#sld .sbt button{margin:0}
+#sld canvas{width:100%;height:auto;display:block;border:1px solid var(--ln,#3d4147)}
+@media (max-width:700px){#sld .sfm{grid-template-columns:1fr 1fr}#sld .sbt{grid-template-columns:1fr 1fr}}
+#expM{display:none}#expM.on{display:flex}
 .b3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.b3 button{margin:0;padding:9px 4px;font-weight:bold}
 @media print{#tog{display:none}}
 #hdr{padding:14px 14px 10px;border-bottom:1px solid var(--ln)}#hdr b{font-size:18px}#hdr small{display:block;margin-top:4px;color:var(--cy);font:11px Consolas,monospace;letter-spacing:.5px}
@@ -177,8 +185,8 @@ body{height:100dvh}
  </fieldset>
  <fieldset><legend>ไฟล์</legend>
   <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]).catch(()=>alert('อ่านไฟล์ไม่ได้'));this.value=''">
-  <button class="pri" onclick="imp.click()">Import (CSV/KML/KMZ/GPX)</button>
-  <button onclick="exportKML()">Export KML</button>
+  <div class="b3"><button class="pri" onclick="imp.click()" title="CSV / KML / KMZ / GPX">IMPORT</button><button onclick="$('expM').classList.toggle('on')">EXPORT ▾</button><button onclick="openSlide()" title="Mission Overview 16:9 PNG">SLIDE</button></div>
+  <div id="expM" class="seg" style="margin:6px 0 0"><button onclick="expAs('kml')">KML</button><button onclick="expAs('kmz')">KMZ</button><button onclick="expAs('gpx')">GPX</button><button onclick="expAs('csv')">CSV</button></div>
   <div class="b3"><button onclick="undo()" title="Ctrl+Z">↶ UNDO</button><button onclick="reverseRoute()" title="กลับทิศเส้นทาง">⇄ BACK TRACK</button><button onclick="clearAll()">CLEAR</button></div>
  </fieldset>
  <fieldset><legend>Export Map (พิมพ์ขนาดจริง แบ่งแผ่น)</legend>
@@ -575,12 +583,97 @@ async function importFile(f){if(!f)return;let t;
 // ---- export ----
 function dl(name,txt,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+txt],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),10000)}
 function exportCSV(){dl('route.csv','type,name,lat,lon,alt_ft\n'+S.pts.map(p=>[p.type,p.name,p.lat,p.lon,p.alt].join(',')).join('\n'),'text/csv')}
-function exportKML(){const main=(S.ui.route||'main')==='main',one=(nm,ends)=>{const L_=legs();
+function exportKML(){/* returns KML text for both routes */const main=(S.ui.route||'main')==='main',one=(nm,ends)=>{const L_=legs();
   const pm=S.pts.filter((p,i)=>ends||(i&&i<S.pts.length-1)).map(p=>`<Placemark><name>${esc(p.type+' '+p.name)}</name><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`).join('');
   const ln=L_.map((l,i)=>`<Placemark><name>Leg ${i+1} ${l.crsTxt} ${Math.round(l.nm)}NM ${hm(l.min)} ${l.alt||''}</name><Style><LineStyle><color>ff000000</color><width>3</width></LineStyle></Style><LineString><tessellate>1</tessellate><coordinates>${S.pts[i].lon},${S.pts[i].lat},0 ${S.pts[i+1].lon},${S.pts[i+1].lat},0</coordinates></LineString></Placemark>`).join('');
   return `<Folder><name>${nm}</name>${pm}${ln}</Folder>`};
   const a=one(main?'Primary':'Alternate',true),b=withAlt(()=>one(main?'Alternate':'Primary',false))||'',f=main?a+b:b+a;
-  dl('route.kml',`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Route</name>${f}</Document></kml>`,'application/vnd.google-earth.kml+xml')}
+  return `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Route</name>${f}</Document></kml>`}
+function dlBlob(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),10000)}
+// both routes as [name, points], primary first
+function routesOut(){const m=(S.ui.route||'main')==='main',a=[['Primary',m?S.pts:S.alt],['Alternate',m?S.alt:S.pts]];return a.filter(r=>r[1]&&r[1].length)}
+async function expAs(f){$('expM').classList.remove('on');if(!S.pts.length)return alert('ยังไม่มีเส้นทาง');
+  if(f==='kml')return dl('route.kml',exportKML(),'application/vnd.google-earth.kml+xml');
+  if(f==='kmz'){const z=new JSZip();z.file('doc.kml',exportKML());return dlBlob('route.kmz',await z.generateAsync({type:'blob',mimeType:'application/vnd.google-earth.kmz'}))}
+  if(f==='gpx'){const R=routesOut(),x=v=>esc(String(v??''));
+    const wpt=R[0][1].concat(...R.slice(1).map(r=>r[1].slice(1,-1))).map(p=>`<wpt lat="${p.lat}" lon="${p.lon}"><name>${x(p.type+' '+p.name)}</name></wpt>`).join('');
+    const rte=R.map(([n,P])=>`<rte><name>${n}</name>${P.map(p=>`<rtept lat="${p.lat}" lon="${p.lon}"><name>${x(p.type+' '+p.name)}</name></rtept>`).join('')}</rte>`).join('');
+    return dl('route.gpx',`<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="FalCon2CP" xmlns="http://www.topografix.com/GPX/1/1">${wpt}${rte}</gpx>`,'application/gpx+xml')}
+  if(f==='csv'){const q=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+    return dl('route.csv','route,type,name,lat,lon,alt_ft\n'+routesOut().flatMap(([n,P])=>P.map(p=>[n,p.type,p.name,p.lat,p.lon,p.alt].map(q).join(','))).join('\n'),'text/csv')}}
+// ---- SLIDE: 16:9 "MISSION OVERVIEW" briefing PNG (3200x1800 = 1600x900 design units x2) ----
+const SL_F=['route','dist','alt','msa','speed','ete','code'],SL_FONT='"TH SarabunPSK","TH Sarabun New",MapSar,Sarabun,Tahoma,sans-serif';
+let slK=1,slBg=null;
+function slRoute(){const R=routesOut();return R.length?R[0][1]:S.pts} // primary route
+function slAuto(){const P=slRoute(),f=P[0],z=P[P.length-1],kt=+$('kt').value||120;
+  const L_=(S.ui.route||'main')==='main'?legs():withAlt(legs)||legs(),dist=Math.round(L_.reduce((s,l)=>s+l.nm,0));
+  const nm=p=>(p.name||p.type||'').trim(),icao=p=>((nm(p).toUpperCase().match(/\b[A-Z]{4}\b/)||[])[0]||'');
+  let mx=null;P.slice(1).forEach((b,i)=>{const v=ELV[ekey(P[i],b)];if(v!=null)mx=Math.max(mx??0,v)});
+  const d=icao(f),e=icao(z);
+  return {route:`${nm(f)} - ${nm(z)}`,dist:String(dist),msa:mx==null?'':String(Math.ceil((mx+1000)/100)*100),speed:String(kt),
+    ete:String(Math.round((dist/kt*60+5)/5)*5),code:d||e?`${d} - ${e}`:''}}
+function slSig(){const P=slRoute();return P.map(p=>p.lat+','+p.lon).join(';')+'|'+$('kt').value}
+function slLoad(){let o={};try{o=JSON.parse(localStorage.getItem('slideF'))||{}}catch(e){}return o}
+function slSave(){const o={sig:slSig()};SL_F.forEach(k=>o[k]=$('sl_'+k).value);try{localStorage.setItem('slideF',JSON.stringify(o))}catch(e){}}
+function slFill(all){const a=slAuto();Object.keys(a).forEach(k=>$('sl_'+k).value=a[k]);if(all){const l=legs().find(x=>has(x.alt));$('sl_alt').value=l?l.alt:''}slSave();buildSlide()}
+async function openSlide(){if(S.pts.length<2)return alert('ต้องมี waypoint อย่างน้อย 2 จุดก่อนทำ SLIDE');
+  if(!$('sld')){document.body.insertAdjacentHTML('beforeend',`<div id="sld"><div class="sbox">
+    <div class="shd"><b>SLIDE · MISSION OVERVIEW</b><button onclick="$('sld').remove()">✕</button></div>
+    <div class="sfm">${[['route','เส้นทางบิน'],['dist','ระยะทาง (NM)'],['alt','ความสูงบิน (ft)'],['msa','MSA (ft)'],['speed','ความเร็ว (kt)'],['ete','ใช้เวลา (นาที)'],['code','ICAO (DEP - DEST)']]
+      .map(([k,t])=>`<label class="${k==='route'?'w':''}">${t}<input id="sl_${k}" onchange="slSave()"></label>`).join('')}</div>
+    <div class="sbt"><button class="pri" onclick="slSave();buildSlide()">อัปเดต</button><button onclick="slPng()">บันทึก PNG</button><button onclick="slShare()">แชร์</button><button onclick="slFill(true)">ค่าเริ่มต้น</button></div>
+    <canvas id="slC" width="3200" height="1800"></canvas></div></div>`)}
+  const o=slLoad();SL_F.forEach(k=>{if(o[k]!=null)$('sl_'+k).value=o[k]});
+  if(o.sig!==slSig()||!o.route){const keep=$('sl_alt').value;slFill(!keep);if(keep)$('sl_alt').value=keep;slSave()}
+  await buildSlide()}
+function slFontReady(){try{return Promise.all(['400','700'].map(w=>document.fonts.load(`${w} 20px MapSar`,'กขA'))).catch(()=>{})}catch(e){return Promise.resolve()}}
+function slDetect(c){c.font='40px monospace';const a=c.measureText('กขคabc').width;c.font='40px "TH SarabunPSK",monospace';slK=c.measureText('กขคabc').width!==a?1.3:1}
+const slImg=src=>new Promise(ok=>{if(!src)return ok(null);const i=new Image();i.crossOrigin='anonymous';const t=setTimeout(()=>ok(null),10000);i.onload=()=>{clearTimeout(t);ok(i)};i.onerror=()=>{clearTimeout(t);ok(null)};i.src=src});
+// text: vertical centre on the letter body (ascent of "Hก"), horizontal centre by measuring (left-aligned draw)
+function slTxt(c,t,x,y,sz,o={}){c.font=`${o.b?'bold ':''}${Math.round(sz*slK)}px ${SL_FONT}`;c.textBaseline='alphabetic';c.textAlign='left';
+  const asc=c.measureText('Hก').actualBoundingBoxAscent||sz*slK*.7,w=c.measureText(t).width,x0=o.al==='l'?x:o.al==='r'?x-w:x-w/2,y0=y+asc/2;
+  if(o.halo){c.lineJoin='round';c.lineWidth=o.halo;c.strokeStyle='rgba(0,0,0,.85)';c.strokeText(t,x0,y0)}c.fillStyle=o.col||'#fff';c.fillText(t,x0,y0);return w}
+async function slMap(c,X,Y,W,H){const P=slRoute(),wx=lo=>(lo+180)/360,wy=la=>{const s=Math.sin(la*Math.PI/180);return .5-Math.log((1+s)/(1-s))/(4*Math.PI)};
+  const xs=P.map(p=>wx(p.lon)),ys=P.map(p=>wy(p.lat)),dx=Math.max(...xs)-Math.min(...xs)||1e-6,dy=Math.max(...ys)-Math.min(...ys)||1e-6;
+  const z=Math.max(5,Math.min(13.5,Math.log2(Math.min(W*.8/dx,H*.78/dy)/256))),ws=256*2**z,cx=(Math.max(...xs)+Math.min(...xs))/2*ws,cy=(Math.max(...ys)+Math.min(...ys))/2*ws;
+  const px=p=>[X+W/2+wx(p.lon)*ws-cx,Y+H/2+wy(p.lat)*ws-cy];
+  c.save();c.beginPath();c.rect(X,Y,W,H);c.clip();c.fillStyle='#dfe3e8';c.fillRect(X,Y,W,H);
+  const draw=async(get,maxZ,minZ)=>{const zi=Math.max(minZ,Math.min(maxZ,Math.ceil(z+1))),k=2**(z-zi),ts=256*k,n=2**zi;
+    const x0=Math.floor((cx-W/2)/ts),x1=Math.floor((cx+W/2)/ts),y0=Math.max(0,Math.floor((cy-H/2)/ts)),y1=Math.min(n-1,Math.floor((cy+H/2)/ts)),jobs=[];
+    for(let tx=x0;tx<=x1;tx++)for(let ty=y0;ty<=y1;ty++)jobs.push(Promise.resolve(get(zi,((tx%n)+n)%n,ty)).catch(()=>null).then(slImg).then(im=>({im,tx,ty})));
+    const r=await Promise.all(jobs),ok=r.filter(t=>t.im).length;if(ok<r.length/2)return false;
+    r.forEach(({im,tx,ty})=>{if(im)c.drawImage(im,X+W/2+tx*ts-cx,Y+H/2+ty*ts-cy,ts+.5,ts+.5)});return true};
+  const esri=(zz,x,y)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zz}/${y}/${x}`;
+  if(!(navigator.onLine&&await draw(esri,18,0))){const s=tileSrc();await draw(s.get,s.max,s.min||0)}
+  const pts=P.map(px);c.lineJoin=c.lineCap='round';
+  [[9,'#fff'],[5,'#e01010']].forEach(([w,col])=>{c.beginPath();pts.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.lineWidth=w;c.strokeStyle=col;c.stroke()});
+  P.forEach((p,i)=>{const [x,y]=pts[i],end=i===0||i===P.length-1,nm=(p.name||p.type||'').trim();
+    if(end){c.beginPath();c.moveTo(x,y);c.bezierCurveTo(x-12,y-14,x-12,y-30,x,y-30);c.bezierCurveTo(x+12,y-30,x+12,y-14,x,y);c.fillStyle='#ffd600';c.fill();c.lineWidth=2;c.strokeStyle='#333';c.stroke();
+      c.beginPath();c.arc(x,y-21,4,0,7);c.fillStyle='#333';c.fill()}
+    else{c.beginPath();c.arc(x,y,6,0,7);c.fillStyle='#fff';c.fill();c.lineWidth=3;c.strokeStyle='#e01010';c.stroke()}
+    const sz=end?22:18;c.font=`${end?'bold ':''}${Math.round(sz*slK)}px ${SL_FONT}`;const w=c.measureText(nm).width,left=x+14+w>X+W-6;
+    slTxt(c,nm,left?x-14:x+14,end?y-18:y,sz,{b:end,al:left?'r':'l',halo:4})});
+  c.restore();c.lineWidth=2;c.strokeStyle='#9a9a9a';c.strokeRect(X,Y,W,H)}
+function slBox(c,x,y,w,h){c.fillStyle='#1f3461';c.fillRect(x,y,w,h);c.lineWidth=2;c.strokeStyle='#0d1a33';c.strokeRect(x,y,w,h);c.lineWidth=1.5;c.strokeStyle='rgba(255,255,255,.9)';c.strokeRect(x+6,y+6,w-12,h-12)}
+async function buildSlide(){const cv=$('slC');if(!cv)return;const c=cv.getContext('2d');c.setTransform(2,0,0,2,0,0);await slFontReady();slDetect(c);
+  if(!slBg)slBg=await slImg('icons/slide-bg.jpg');
+  if(slBg)c.drawImage(slBg,0,0,1600,900);
+  else{c.fillStyle='#ececec';c.fillRect(0,0,1600,900);c.fillStyle='#bfc3c7';c.fillRect(0,0,1600,110);slTxt(c,'MISSION OVERVIEW',800,57,46);
+    c.fillStyle='#b8902a';c.fillRect(0,858,1600,42);slTxt(c,'S - Safety is our Priority   P - Perfect Professional Unity   D - Development and Dedication to Integrity',20,879,24,{al:'l',col:'#f3e6c0'})}
+  const v=k=>($('sl_'+k).value||'').trim(),num=s=>/^\d+(\.\d+)?$/.test(s);
+  const X=822,W=708;let y=196;
+  slBox(c,X,y,W,64);slTxt(c,'ENROUTE / DIST / ALT / SPEED / ETE',X+W/2,y+32,30,{b:true});y+=64+12;
+  slBox(c,X,y,W,116);slTxt(c,'เส้นทางบิน',X+W/2,y+36,30,{b:true});slTxt(c,v('route')||'-',X+W/2,y+80,28);y+=116+12;
+  const rows=[['ระยะทาง',v('dist'),'ไมล์ทะเล'],['ความสูงบิน',v('alt'),'ฟุต'],['MSA',v('msa'),'ฟุต'],['ความเร็ว',v('speed'),'นอต'],['ใช้เวลา',v('ete'),'นาที']];
+  slBox(c,X,y,W,rows.length*46+16);rows.forEach(([l,val,u],i)=>{const yy=y+8+i*46+23;slTxt(c,l,X+30,yy,28,{al:'l'});slTxt(c,'= '+(val?val+(num(val)?' '+u:''):'-'),X+W*.44,yy,28,{al:'l'})});
+  y+=rows.length*46+16+12;slBox(c,X,y,W,62);slTxt(c,'เส้นทางบิน : '+(v('code')||'-'),X+W/2,y+31,28,{b:true});
+  await slMap(c,30,190,770,520)}
+function slName(){const [d,e]=($('sl_code').value||'').split('-').map(s=>s.trim().toUpperCase().replace(/[^A-Z0-9]/g,''));return `MissionOverview_${d||'DEP'}_${e||'DEST'}.png`}
+const slBlob=()=>new Promise((ok,no)=>{try{$('slC').toBlob(b=>b?ok(b):no(new Error('blob')),'image/png')}catch(e){no(e)}});
+async function slPng(){try{dlBlob(slName(),await slBlob())}catch(e){alert('บันทึก PNG ไม่ได้: '+e.message)}}
+async function slShare(){try{const f=new File([await slBlob()],slName(),{type:'image/png'});
+  if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],title:'Mission Overview'});else{dlBlob(f.name,f);alert('อุปกรณ์นี้แชร์ไฟล์ไม่ได้ จึงบันทึกเป็นไฟล์แทน')}}
+  catch(e){if(e.name!=='AbortError')alert('แชร์ไม่ได้: '+e.message)}}
 // ---- Export Map: tiles of paper at true scale (print / save as PDF) ----
 const PAPER={A4:[210,297],A3:[297,420]},MERC=L.CRS.EPSG3857,M0=2*Math.PI*6378137/256; // m/px at z0, equator
 let pmSrc=null,prShow=false,prMaps=[];const pgGrp=L.layerGroup().addTo(map);
