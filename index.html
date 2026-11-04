@@ -157,6 +157,7 @@ body{height:100dvh}
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
   <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
+  <div class="row" style="margin:-2px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setShow(false,this.checked)" style="width:auto"> SHOW เส้นทางหลัก</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setShow(true,this.checked)" style="width:auto"> SHOW เส้นทางสำรอง</label></div>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
   <div id="llBox" style="display:none"><div class="sm">Lat / Lon แบบ องศา ลิปดา.ทศนิยม (ไม่ต้องใส่ N/E) เช่น 16 07.01 / 103 46.45</div>
    <div class="row"><input id="fLat" placeholder="16 07.01" inputmode="decimal"><input id="fLon" placeholder="103 46.45" inputmode="decimal"></div></div>
@@ -258,27 +259,31 @@ function snap(){const j=JSON.stringify(S.pts,(k,v)=>k==='_auto'?undefined:v);if(
   lastSnap=j}
 function undo(){if(!HIST.length)return;undoing=true;S.pts=JSON.parse(HIST.pop());closeEd();draw();undoing=false}
 // route roles by position: first = PZ, last = LZ, the rest = CP (keeps a matching suffix like CP2)
-function fixTypes(){const n=S.pts.length,dc=Object.values(COL).map(c=>c.toLowerCase());
-  S.pts.forEach((p,i)=>{const want=i===0?'PZ':i===n-1?'LZ':'CP';if(kind(p.type)===want)return;
-    p.type=want==='CP'?'CP'+i:want;if(p.lcol!=null&&dc.includes(String(p.lcol).toLowerCase()))delete p.lcol})}
+// CPs are numbered through the primary route first (CP1..n), then continue on the alternate route
+function fixTypes(){const dc=Object.values(COL).map(c=>c.toLowerCase()),onMain=(S.ui.route||'main')==='main';let k=0;
+  [onMain?S.pts:S.alt,onMain?S.alt:S.pts].forEach(arr=>{if(!arr)return;const n=arr.length;
+    arr.forEach((p,i)=>{const want=i===0?'PZ':i===n-1?'LZ':'CP',t=want==='CP'?'CP'+(++k):want;if(p.type===t)return;
+      if(kind(p.type)!==want&&p.lcol!=null&&dc.includes(String(p.lcol).toLowerCase()))delete p.lcol;p.type=t})})}
 // ---- primary / alternate route: S.pts = route being edited, S.alt = the other one; PZ & LZ are shared ----
 const SHARE=['name','lat','lon','ltxt','lcol','lsc','msc','tbx','noTbl'];
 function syncEnds(){const a=S.alt,n=S.pts.length;if(!a||a.length<2||n<2)return;
   [[0,0],[n-1,a.length-1]].forEach(([i,j])=>{SHARE.forEach(k=>{if(S.pts[i][k]===undefined)delete a[j][k];else a[j][k]=S.pts[i][k]});
     const altP=(S.ui.route||'main')==='alt'?S.pts[i]:a[j],o=altP===a[j]?S.pts[i]:a[j],lo=o.loff||[0.05,0];
     if(!altP.loff||(altP.loff[0]===lo[0]&&altP.loff[1]===lo[1])){altP.loff=[lo[0]-0.1,lo[1]];delete altP.lbl}})}
-function routeBtns(){const r=S.ui.route||'main';$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=S.alt?'':'none'}
+function routeBtns(){const r=S.ui.route||'main';$('shMain').checked=showR(false);$('shAlt').checked=showR(true);$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=S.alt?'':'none'}
 function setRoute(r){const cur=S.ui.route||'main';if(r===cur)return;
   if(!S.alt){if(S.pts.length<2)return alert('สร้างเส้นทางหลักให้มี PZ และ LZ ก่อน');const f=S.pts[0],z=S.pts[S.pts.length-1];
     S.alt=[{type:'PZ',name:f.name,lat:f.lat,lon:f.lon,alt:f.alt},{type:'LZ',name:z.name,lat:z.lat,lon:z.lon,alt:''}]}
   syncEnds();[S.pts,S.alt]=[S.alt,S.pts];S.ui.route=r;HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 function delAlt(){if(!S.alt||!confirm('ลบเส้นทางสำรอง?'))return;if((S.ui.route||'main')==='alt'){syncEnds();S.pts=S.alt}
   S.alt=null;S.ui.route='main';HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
-// the route not being edited: dashed purple line + small dots, not editable
-function ghost(g){const a=S.alt;if(!a||a.length<2)return;const c=(S.ui.route||'main')==='alt'?'#5BC0EB':'#B04CE0';
-  L.polyline(a.map(p=>[p.lat,p.lon]),{color:c,weight:3,opacity:.75,dashArray:'8 7',interactive:false}).addTo(g);
-  a.slice(1,-1).forEach(p=>L.circleMarker([p.lat,p.lon],{radius:5,color:c,weight:2,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(g))}
-function draw(){fixTypes();syncEnds();snap();grp.clearLayers();ghost(grp);const r=render(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain()}
+// SHOW toggles: isAlt=true -> alternate route
+const showR=isAlt=>isAlt?S.ui.showAlt!==false:S.ui.showMain!==false;
+function setShow(isAlt,v){S.ui[isAlt?'showAlt':'showMain']=v;draw()}
+// both routes on one map: the other route first (read-only), then the edited one on top
+function drawRoutes(g,ro){const ca=(S.ui.route||'main')==='alt';if(showR(!ca))withAlt(()=>render(g,true,true));
+  return render(showR(ca)?g:L.layerGroup(),ro)}
+function draw(){fixTypes();syncEnds();snap();grp.clearLayers();const r=drawRoutes(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain();withAlt(terrain)}
 // ---- leg ALT from terrain: highest ground along the leg (AWS Terrarium DEM, z12 ~30 m), round up to 100 ft, + 500 ft ----
 const ELV={},ELP={},DEM={};const ekey=(a,b)=>[a.lat,a.lon,b.lat,b.lon].join(',');
 function autoAlt(a,b){const f=b&&ELV[ekey(a,b)];return f==null?null:String(Math.ceil(f/100)*100+500)}
@@ -311,8 +316,8 @@ function terrain(){S.pts.slice(1).forEach((b,i)=>{const a=S.pts[i],k=ekey(a,b);i
 // run fn with the other route (S.alt) swapped in as S.pts
 function withAlt(fn){if(!S.alt||S.alt.length<2)return;[S.pts,S.alt]=[S.alt,S.pts];try{return fn()}finally{[S.pts,S.alt]=[S.alt,S.pts]}}
 // noEnds: skip PZ/LZ markers (second route drawn on the same print page); its PZ/LZ tables are still drawn
-function render(g,ro,noEnds){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf',cur=S.ui.route||'main';
-  const isAlt=noEnds?cur!=='alt':cur==='alt',rName=!S.alt?'':isAlt?'สำรอง':'หลัก'; // top-left table cell names the route
+function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf',cur=S.ui.route||'main';
+  const isAlt=other?cur!=='alt':cur==='alt',noEnds=other&&showR(!isAlt),rName=!S.alt?'':isAlt?'สำรอง':'หลัก'; // top-left table cell names the route
   const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
@@ -430,7 +435,7 @@ function revPts(){const n=S.pts.length;if(n<2)return;
   S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined,lw:undefined};Object.assign(p,d)});
   const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2);[f.lcol,z.lcol]=[z.lcol,f.lcol];const dc=[COL.PZ,COL.LZ].map(c=>c.toLowerCase());[f,z].forEach(p=>{if(p.lcol==null||dc.includes(String(p.lcol).toLowerCase()))delete p.lcol})}
 }
-function reverseRoute(){if(S.pts.length<2)return;revPts();if(S.alt&&S.alt.length>1){[S.pts,S.alt]=[S.alt,S.pts];revPts();fixTypes();[S.pts,S.alt]=[S.alt,S.pts]}draw()}
+function reverseRoute(){if(S.pts.length<2)return;revPts();if(S.alt&&S.alt.length>1){[S.pts,S.alt]=[S.alt,S.pts];revPts();[S.pts,S.alt]=[S.alt,S.pts]}draw()}
 function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
 function resetBox(...ix){ix.forEach(k=>{const p=S.pts[k];if(p){delete p.boff;delete p.box}})}
 function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;resetBox(i-1,i,i+d-1,i+d);[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
@@ -536,7 +541,7 @@ function prCfg(){const [w,h]=PAPER[$('pP').value],l=$('pO').value==='l',m=Math.m
 const zoomFor=(lat,S)=>Math.log2(M0*Math.cos(lat*Math.PI/180)*96/(S*0.0254));
 function prPages(){const c=prCfg(),ll=[];
   const add=a=>a.forEach((p,i)=>{ll.push([p.lat,p.lon]);if($('shLbl').checked&&p.lbl)ll.push(p.lbl);if($('shBox').checked&&p.box&&i<a.length-1)ll.push(p.box)});
-  add(S.pts);if(S.alt&&S.alt.length>1)add(S.alt);
+  const ca=(S.ui.route||'main')==='alt';if(showR(ca))add(S.pts);if(S.alt&&S.alt.length>1&&showR(!ca))add(S.alt);
   if(!ll.length)return {c,pages:[],nr:0,nc:0};
   const P=ll.map(x=>MERC.project(L.latLng(x))),xs=P.map(p=>p.x),ys=P.map(p=>p.y);
   // paper mm -> mercator m, using the lowest |lat| so every page is at least this big (overlap never < setting)
@@ -579,7 +584,7 @@ async function buildPages(){const {c,pages,nr,nc}=prPages();if(!pages.length){al
     prMaps.push(m);m.setView(p.center,zoomFor(p.center.lat,c.S),{animate:false});
     const lay=new HiRes({tileSize:128,src,maxNativeZoom:src.max-1,minNativeZoom:Math.max(0,src.min-1),keepBuffer:0,updateWhenIdle:false});
     const ok=new Promise(res=>{const t=setTimeout(res,90000);lay.once('load',()=>{clearTimeout(t);res()})}).then(()=>{$('pInfo').textContent=`โหลดแผนที่ ${++done}/${pages.length} แผ่น`});
-    lay.addTo(m);const rg=L.layerGroup().addTo(m);withAlt(()=>render(rg,true,true));render(rg,true);
+    lay.addTo(m);drawRoutes(L.layerGroup().addTo(m),true);
     const nb=(r,q)=>r>=0&&r<nr&&q>=0&&q<nc?r*nc+q+1:0,o=c.ov+'mm',el=[],nbs=[];
     [[p.r-1,p.c,`left:0;right:0;top:${o};border-top-width:.4mm`,'top:1mm;left:50%;transform:translateX(-50%)','▲'],
      [p.r+1,p.c,`left:0;right:0;bottom:${o};border-bottom-width:.4mm`,'bottom:1mm;left:50%;transform:translateX(-50%)','▼'],
