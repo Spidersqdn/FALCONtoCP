@@ -463,7 +463,8 @@ function list(L_,tot,tmin){
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
 function revPts(){const n=S.pts.length;if(n<2)return;
   const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx,bsc:p.bsc,ln:p.ln,lw:p.lw}));
-  S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined,lw:undefined};Object.assign(p,d)});
+  S.pts.reverse();S.pts.forEach(p=>{if(p.tf==='PZ')p.tf='LZ';else if(p.tf==='LZ')p.tf='PZ'}); // chosen PZ/LZ swap ends too
+  S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined,lw:undefined};Object.assign(p,d)});
   const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2);[f.lcol,z.lcol]=[z.lcol,f.lcol];const dc=[COL.PZ,COL.LZ].map(c=>c.toLowerCase());[f,z].forEach(p=>{if(p.lcol==null||dc.includes(String(p.lcol).toLowerCase()))delete p.lcol})}
 }
 function reverseRoute(){if(S.pts.length<2)return;revPts();if(S.alt&&S.alt.length>1){[S.pts,S.alt]=[S.alt,S.pts];revPts();[S.pts,S.alt]=[S.alt,S.pts]}draw()}
