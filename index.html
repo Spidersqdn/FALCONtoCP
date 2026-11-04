@@ -156,7 +156,7 @@ body{height:100dvh}
   </details>
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
-  <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rSw" onclick="swapRoutes()" title="สลับเส้นทางหลัก ↔ สำรอง" style="flex:0 0 38px">⇄</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
+  <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rSw" onclick="swapRoutes()" title="สลับเส้นทางหลัก ↔ สำรอง" style="flex:0 0 38px">⇄</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
   <div class="row" style="margin:-2px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setShow(false,this.checked)" style="width:auto"> SHOW เส้นทางหลัก</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setShow(true,this.checked)" style="width:auto"> SHOW เส้นทางสำรอง</label></div>
   <div class="row" style="margin:-4px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shLbl" checked onchange="draw()" style="width:auto"> SHOW PZ CPs LZ</label><label style="flex:none"><input type="checkbox" id="shBox" checked onchange="draw()" style="width:auto"> SHOW DOG LEGs</label></div>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
