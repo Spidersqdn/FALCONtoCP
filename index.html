@@ -184,6 +184,7 @@ body{height:100dvh}
   <div class="sm" style="margin-top:10px">รูปแบบเส้นทาง</div>
   <div class="seg"><button id="sA" onclick="setStyle('anf',1)">NAVIGATION</button><button id="sC" onclick="setStyle('cp',1)">แผนที่แผนสมบูรณ์</button></div>
   <div class="row"><span class="sm" style="flex:none" id="lineLb">เส้นทาง</span><select id="lineSt" onchange="setLine(this.value)"><option value="solid">เส้นทึบ</option><option value="dash">เส้นประ</option></select></div>
+  <div class="sm">ขนาดเส้นทางบิน</div><div id="lwBox"></div>
   <div class="sm">ขนาด Waypoint</div><div id="msBox"></div>
   <div class="sm">ขนาด DOG LEGs</div><div id="bsBox"></div>
   <div class="sm">ขนาด TABLEs</div><div id="lsBox"></div>
@@ -278,7 +279,8 @@ function pctIn(id,v,fn,o){o=Object.assign({min:20,max:400,step:1,unit:'%',nmin:1
 // whole-map settings: set the default and drop per-point overrides on both routes
 const allPts=()=>S.pts.concat(S.alt||[]);
 function setGlob(k,v){S.ui[k]=v;allPts().forEach(q=>delete q[k]);draw()}
-function globSizes(){$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,"setGlob('msc',this.value/100)");
+function setLw(v){S.ui.lwc=v;delete S.ui.lw;allPts().forEach(q=>delete q.lw);draw()}
+function globSizes(){$('lwBox').innerHTML=pctIn('lwG',(S.ui.lwc||1)*100,"setLw(this.value/100)");$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,"setGlob('msc',this.value/100)");
   $('bsBox').innerHTML=pctIn('bsG',(S.ui.bsc||1)*100,"setGlob('bsc',this.value/100)");
   $('lsBox').innerHTML=pctIn('lsG',(S.ui.lsc||1)*100,"setGlob('lsc',this.value/100)");
   $('txBox').innerHTML=pctIn('txG',S.ui.tbx||0,"setGlob('tbx',+this.value)",{min:-200,max:200,step:5,unit:'px',nmin:-400,nmax:400})}
@@ -363,7 +365,7 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
     const dash=(a.ln||(isAlt?S.ui.lineAlt||'dash':S.ui.line||'solid'))==='dash'?'10 8':null; // per-leg style wins; else alternate = dashed, primary = global setting (solid by default)
-    L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4,opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3,dashArray:dash}).addTo(g);
+    L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4*(S.ui.lwc||1),opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
     if(anf)L.marker([(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
     if(!$('shBox').checked)return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
@@ -440,7 +442,7 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
    <label>สีกรอบ</label><input id="eK" type="color" value="${o.col||'#1F4E79'}">
    ${(b=>`<label style="color:#333"><input type="checkbox" id="bH" ${b.h?'checked':''} style="width:auto"> สามเหลี่ยมหัว</label><label style="color:#333"><input type="checkbox" id="bT" ${b.t?'checked':''} style="width:auto"> สามเหลี่ยมท้าย</label>`)(Object.assign({h:true,t:true},a.bx||{}))}
    <label>เส้น leg นี้</label><select id="eLn" onchange="S.pts[${i}].ln=this.value;draw()" style="width:100%"><option value="">ตามค่าหลัก</option><option value="solid" ${a.ln==='solid'?'selected':''}>เส้นทึบ</option><option value="dash" ${a.ln==='dash'?'selected':''}>เส้นประ</option></select>
-   <label>ความหนาเส้น leg (px)</label><div class="pct"><input id="eW" type="range" min="1" max="12" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)}" oninput="$('eWn').value=this.value;S.pts[${i}].lw=+this.value;draw()"><input id="eWn" type="number" min="0.5" max="30" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)}" oninput="if(this.value>0){$('eW').value=this.value;S.pts[${i}].lw=+this.value;draw()}"><span>px</span></div>
+   <label>ความหนาเส้น leg (px)</label><div class="pct"><input id="eW" type="range" min="1" max="12" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)*(S.ui.lwc||1)}" oninput="$('eWn').value=this.value;S.pts[${i}].lw=+this.value;draw()"><input id="eWn" type="number" min="0.5" max="30" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)*(S.ui.lwc||1)}" oninput="if(this.value>0){$('eW').value=this.value;S.pts[${i}].lw=+this.value;draw()}"><span>px</span></div>
    <label>ขนาดกล่อง</label>${pctIn('bS',(a.bsc||S.ui.bsc||1)*100,`S.pts[${i}].bsc=this.value/100;draw()`)}
    <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบ/ขนาดกล่อง/ความหนาเส้นนี้กับทุก leg</label>
    <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};delete S.pts[${i}].lw;closeEd();draw()">คืนค่าอัตโนมัติ</button>`)}
