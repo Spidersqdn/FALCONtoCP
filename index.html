@@ -360,7 +360,7 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
     const tbl=p.noTbl?'':`<table style="left:${p.tbx||0}px">${[0,1,2,3].map(r=>`<tr>${[0,1,2].map(c=>`<td>${cell(r*3+c)}</td>`).join('')}</tr>`).join('')}</table>`;
     if(!first&&!last)L.polyline([[p.lat,p.lon],p.lbl],{color:'#000',weight:2}).addTo(g); // no leader line for origin/destination
     const lb=L.marker(p.lbl,{draggable:!ro,interactive:!ro,icon:L.divIcon({className:'lbl',iconSize:null,iconAnchor:[0,0],
-      html:`<div style="transform:translate(-50%,-50%) scale(${p.lsc||S.ui.lsc||1})"><div class="t" style="background:${p.lcol||col(p.type)}">${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}</div>${tbl}</div>`})}).addTo(g);
+      html:`<div style="transform:translate(-50%,-50%) scale(${p.lsc||S.ui.lsc||1})"><div class="t" style="background:${p.lcol||col(p.type)}">${esc(lblTxt(p))}</div>${tbl}</div>`})}).addTo(g);
     if(ro)return;
     lb.on('dragend',e=>{const q=e.target.getLatLng();p.loff=[q.lat-p.lat,q.lng-p.lon];draw()});
     lb.on('click',()=>editLbl(i));
@@ -404,7 +404,7 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
 function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.ui.lw=+$('eWn').value||undefined;S.pts.forEach(p=>{delete p.lw;p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),alt:$('eA').value.trim(),col:$('eK').value};closeEd();draw()}
 function editLbl(i){const p=S.pts[i];
   popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
-   <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}" placeholder="${esc(p.type+' '+p.name)}">
+   <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(lblTxt(p))}" placeholder="${esc(p.type+' '+p.name)}">
    <label>สีพื้น</label><input id="eK" type="color" value="${p.lcol||col(p.type)}">
    <label style="color:#333"><input type="checkbox" id="eH" ${p.noTbl?'checked':''} style="width:auto"> ซ่อนตาราง TOTAL/ACTUAL/REMAIN</label>
    <label>ข้อมูลตาราง (เว้นว่าง = ค่าอัตโนมัติ)</label><div class="g">${(p._auto||[]).map((v,k)=>`<input id="tv${k}" value="${esc((p.tv||[])[k])}" placeholder="${esc(v)}">`).join('')}</div>
@@ -468,6 +468,8 @@ function mgrs(lat,lon){lat=+lat;lon=+lon;if(!(lat>=-80&&lat<=84))return '-';
     row='ABCDEFGHJKLMNPQRSTUV'[(Math.floor(Nn/100000)+(z%2?0:5))%20];
   const e5=String(Math.floor(E%100000)).padStart(5,'0'),n5=String(Math.floor(Nn%100000)).padStart(5,'0');
   return `${z}${band} ${col}${row} ${e5} ${n5}`}
+// label text; a custom text that starts with PZ / LZ / CPn follows the point's current type (CP renumbering)
+function lblTxt(p){return has(p.ltxt)?String(p.ltxt).replace(/^(PZ|LZ|CP\d*)(?=\s|$)/i,p.type):p.type+' '+p.name}
 function ddm(v){v=+v;const a=Math.abs(v);let d=Math.floor(a),m=+((a-d)*60).toFixed(2);if(m>=60){d++;m=0}return (v<0?'-':'')+d+' '+m.toFixed(2).padStart(5,'0')}
 function parseCoord(v){v=String(v).trim().toUpperCase();if(!v)return null;
   const neg=/^[SW-]|[SW]$/.test(v);let n=v.replace(/[NSEW°'"-]/g,' ').trim().split(/[\s,]+/).map(Number);
