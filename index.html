@@ -380,7 +380,7 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
 function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked};if($('bAll').checked){const sc=$('bS').value/100;S.ui.bsc=sc;S.ui.lw=+$('eWn').value||undefined;S.pts.forEach(p=>{delete p.lw;p.bx={...bx};delete p.bsc;p.ov=Object.assign(p.ov||{},{col:$('eK').value})})}a.bx=bx;a.ov={crs:$('eC').value.trim(),nm:$('eN').value.trim(),t:$('eT').value.trim(),alt:$('eA').value.trim(),col:$('eK').value};closeEd();draw()}
 function editLbl(i){const p=S.pts[i];
   popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
-   <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(p.ltxt)}" placeholder="${esc(p.type+' '+p.name)}">
+   <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(has(p.ltxt)?p.ltxt:p.type+' '+p.name)}" placeholder="${esc(p.type+' '+p.name)}">
    <label>สีพื้น</label><input id="eK" type="color" value="${p.lcol||col(p.type)}">
    <label style="color:#333"><input type="checkbox" id="eH" ${p.noTbl?'checked':''} style="width:auto"> ซ่อนตาราง TOTAL/ACTUAL/REMAIN</label>
    <label>ข้อมูลตาราง (เว้นว่าง = ค่าอัตโนมัติ)</label><div class="g">${(p._auto||[]).map((v,k)=>`<input id="tv${k}" value="${esc((p.tv||[])[k])}" placeholder="${esc(v)}">`).join('')}</div>
@@ -391,7 +391,7 @@ function editLbl(i){const p=S.pts[i];
    <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
    <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','msc','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
 function delPt(i){const p=S.pts[i];if(!confirm('ลบจุด '+(p.type+' '+p.name).trim()+' ? (กด Undo เพื่อย้อนได้)'))return;resetBox(i-1);S.pts.splice(i,1);closeEd();draw()}
-function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();p.lcol=$('eK').value;if(p.lcol.toLowerCase()===col(p.type).toLowerCase())delete p.lcol;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
+function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();if(p.ltxt===(p.type+' '+p.name).trim())p.ltxt='';p.lcol=$('eK').value;if(p.lcol.toLowerCase()===col(p.type).toLowerCase())delete p.lcol;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
   if($('lAll').checked){S.ui.lsc=p.lsc;S.ui.msc=p.msc;S.pts.forEach(q=>{delete q.lsc;delete q.msc;q.tbx=p.tbx})}closeEd();draw()}
 // ---- waypoint list (AirNavFlow style) ----
 function list(L_,tot,tmin){
