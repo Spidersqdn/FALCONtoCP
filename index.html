@@ -635,15 +635,20 @@ function slTxt(c,t,x,y,sz,o={}){c.font=`${o.b?'bold ':''}${Math.round(sz*slK)}px
   if(o.halo){c.lineJoin='round';c.lineWidth=o.halo;c.strokeStyle='rgba(0,0,0,.85)';c.strokeText(t,x0,y0)}c.fillStyle=o.col||'#fff';c.fillText(t,x0,y0);return w}
 // map panel = the app's own map in "แผนที่แผนสมบูรณ์" style (labels, tables, DOG LEGs), rendered off-screen and captured
 async function slMap(c,X,Y,W,H){if(!window.html2canvas)await loadJS('lib/html2canvas.min.js');
-  const box=document.createElement('div');box.id='slMapBox';box.style.cssText=`position:absolute;left:-30000px;top:0;width:${W}px;height:${H}px;background:#fff`;document.body.appendChild(box);
+  const box=document.createElement('div');box.id='slMapBox';// size the off-screen map so the route fits at the SAME zoom as the screen -> symbols/tables keep the on-screen proportion
+  const P=allPts().length?allPts():S.pts,LB=L.latLngBounds(P.map(p=>[p.lat,p.lon]));let z=map.getZoom();
+  const pa=map.project(LB.getNorthWest(),z),pb=map.project(LB.getSouthEast(),z);
+  let bw=Math.max(pb.x-pa.x+300,W),bh=Math.max(pb.y-pa.y+250,H);if(bw/bh<W/H)bw=bh*W/H;else bh=bw*H/W;
+  const MAXW=3000;if(bw>MAXW){z+=Math.log2(MAXW/bw);bh*=MAXW/bw;bw=MAXW}
+  box.style.cssText=`position:absolute;left:-30000px;top:0;width:${Math.round(bw)}px;height:${Math.round(bh)}px;background:#fff`;document.body.appendChild(box);
   const m=L.map(box,{preferCanvas:true,zoomControl:false,attributionControl:false,zoomSnap:0,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false,
     dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false});
-  try{const P=allPts().length?allPts():S.pts;m.fitBounds(P.map(p=>[p.lat,p.lon]),{paddingTopLeft:[150,160],paddingBottomRight:[150,90],animate:false});
+  try{const ctr=m.unproject(m.project(LB.getCenter(),z).subtract([0,35]),z);m.setView(ctr,z,{animate:false});
     const src=tileSrc(),lay=new HiRes({tileSize:128,src,maxNativeZoom:src.max-1,minNativeZoom:Math.max(0,src.min-1),keepBuffer:0,updateWhenIdle:false});
     const ok=new Promise(res=>{const t=setTimeout(res,30000);lay.once('load',()=>{clearTimeout(t);res()})});lay.addTo(m);
     const st=S.ui.style;S.ui.style='cp';try{drawRoutes(L.layerGroup().addTo(m),true)}finally{S.ui.style=st}
     await ok;await new Promise(r=>setTimeout(r,300));
-    const cv=await html2canvas(box,{scale:2,useCORS:true,backgroundColor:'#fff',logging:false,onclone:d=>{d.body.classList.add('pdfcap');d.getElementById('slMapBox').style.left='0'}});
+    const cv=await html2canvas(box,{scale:Math.min(2,2*W/bw),useCORS:true,backgroundColor:'#fff',logging:false,onclone:d=>{d.body.classList.add('pdfcap');d.getElementById('slMapBox').style.left='0'}});
     c.drawImage(cv,X,Y,W,H)}
   catch(e){c.fillStyle='#dfe3e8';c.fillRect(X,Y,W,H)}
   finally{m.remove();box.remove()}
