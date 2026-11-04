@@ -264,7 +264,9 @@ function fixTypes(){const n=S.pts.length,dc=Object.values(COL).map(c=>c.toLowerC
 // ---- primary / alternate route: S.pts = route being edited, S.alt = the other one; PZ & LZ are shared ----
 const SHARE=['name','lat','lon','ltxt','lcol','lsc','msc','tbx','noTbl'];
 function syncEnds(){const a=S.alt,n=S.pts.length;if(!a||a.length<2||n<2)return;
-  [[0,0],[n-1,a.length-1]].forEach(([i,j])=>SHARE.forEach(k=>{if(S.pts[i][k]===undefined)delete a[j][k];else a[j][k]=S.pts[i][k]}))}
+  [[0,0],[n-1,a.length-1]].forEach(([i,j])=>{SHARE.forEach(k=>{if(S.pts[i][k]===undefined)delete a[j][k];else a[j][k]=S.pts[i][k]});
+    const altP=(S.ui.route||'main')==='alt'?S.pts[i]:a[j],o=altP===a[j]?S.pts[i]:a[j],lo=o.loff||[0.05,0];
+    if(!altP.loff||(altP.loff[0]===lo[0]&&altP.loff[1]===lo[1])){altP.loff=[lo[0]-0.1,lo[1]];delete altP.lbl}})}
 function routeBtns(){const r=S.ui.route||'main';$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=S.alt?'':'none'}
 function setRoute(r){const cur=S.ui.route||'main';if(r===cur)return;
   if(!S.alt){if(S.pts.length<2)return alert('สร้างเส้นทางหลักให้มี PZ และ LZ ก่อน');const f=S.pts[0],z=S.pts[S.pts.length-1];
@@ -306,11 +308,15 @@ function profile(L_){const g=$('prG');if(!L_.length){g.innerHTML='<div class="e"
 function terrain(){S.pts.slice(1).forEach((b,i)=>{const a=S.pts[i],k=ekey(a,b);if(k in ELV||ELP[k])return;ELP[k]=1;
   legMaxFt(a,b).then(f=>{delete ELP[k];if(f==null)return;ELV[k]=f;draw()})})}
 // draw route layers into group g; ro=read-only (print pages)
-function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
+// run fn with the other route (S.alt) swapped in as S.pts
+function withAlt(fn){if(!S.alt||S.alt.length<2)return;[S.pts,S.alt]=[S.alt,S.pts];try{return fn()}finally{[S.pts,S.alt]=[S.alt,S.pts]}}
+// noEnds: skip PZ/LZ markers (second route drawn on the same print page); its PZ/LZ tables are still drawn
+function render(g,ro,noEnds){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf',cur=S.ui.route||'main';
+  const isAlt=noEnds?cur!=='alt':cur==='alt',rName=!S.alt?'':isAlt?'สำรอง':'หลัก'; // top-left table cell names the route
   const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
-    const dash=(a.ln||S.ui.line)==='dash'?'10 8':null; // per-leg line style overrides the global one
+    const dash=(a.ln||(isAlt?'dash':S.ui.line))==='dash'?'10 8':null; // per-leg style wins; else alternate = dashed, primary = global setting (solid by default)
     L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4,opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3,dashArray:dash}).addTo(g);
     if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
     if(!$('shBox').checked)return;
@@ -337,14 +343,14 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     bx.on('click',()=>editBox(i,a.box));
   });
   S.pts.forEach((p,i)=>{ if(i>0){cn+=L_[i-1].nm;cm+=L_[i-1].min}
-    const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:26)*ms;
-    const mk=L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
-    if(!ro){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
+    const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:26)*ms;const skipMk=noEnds&&(first||last);
+    const mk=skipMk?null:L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
+    if(!ro&&mk){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()})}
     if(!$('shLbl').checked)return;
     if(!p.loff)p.loff=p.lbl?[p.lbl[0]-p.lat,p.lbl[1]-p.lon]:[0.05,0]; // label follows its point
     p.lbl=[p.lat+p.loff[0],p.lon+p.loff[1]];
-    const auto=['','NM','MIN','TOTAL',Math.round(tot),hm(tmin),'ACTUAL',first?'-':Math.round(cn),first?'-':hm(cm),'REMAIN',last?'-':Math.round(tot-cn),last?'-':hm(tmin-cm)];
+    const auto=[rName,'NM','MIN','TOTAL',Math.round(tot),hm(tmin),'ACTUAL',first?'-':Math.round(cn),first?'-':hm(cm),'REMAIN',last?'-':Math.round(tot-cn),last?'-':hm(tmin-cm)];
     p._auto=auto;const tv=p.tv||[],cell=k=>esc(has(tv[k])?tv[k]:auto[k]);
     const tbl=p.noTbl?'':`<table style="left:${p.tbx||0}px">${[0,1,2,3].map(r=>`<tr>${[0,1,2].map(c=>`<td>${cell(r*3+c)}</td>`).join('')}</tr>`).join('')}</table>`;
     if(!first&&!last)L.polyline([[p.lat,p.lon],p.lbl],{color:'#000',weight:2}).addTo(g); // no leader line for origin/destination
@@ -473,7 +479,7 @@ function addFromForm(){if(S.ui.mode==='map')return alert('โหมด On MAP: �
 function setMode(m){S.ui.mode=m;$('mOn').classList.toggle('on',m==='map');$('mLL').classList.toggle('on',m==='ll');$('llBox').style.display=m==='ll'?'':'none';
   $('modeHint').textContent=m==='map'?'คลิกบนแผนที่เพื่อเพิ่มจุดด้วยค่าในฟอร์มนี้':'กรอกพิกัดแล้วกด Add ROUTE';
   map.getContainer().style.cursor=m==='map'?'crosshair':'';save()}
-function setStyle(s,user){S.ui.style=s;if(user){S.ui.line=s==='anf'?'solid':'dash'}$('lineSt').value=S.ui.line;$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
+function setStyle(s,user){S.ui.style=s;if(user){S.ui.line='solid'}$('lineSt').value=S.ui.line;$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
 map.on('click',e=>{if($('edp').style.display==='block'){closeEd();return}if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
 $('kt').oninput=draw;
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();undo()}});
@@ -515,10 +521,12 @@ async function importFile(f){if(!f)return;let t;
 // ---- export ----
 function dl(name,txt,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+txt],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),10000)}
 function exportCSV(){dl('route.csv','type,name,lat,lon,alt_ft\n'+S.pts.map(p=>[p.type,p.name,p.lat,p.lon,p.alt].join(',')).join('\n'),'text/csv')}
-function exportKML(){const L_=legs();
-  const pm=S.pts.map(p=>`<Placemark><name>${esc(p.type+' '+p.name)}</name><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`).join('');
+function exportKML(){const main=(S.ui.route||'main')==='main',one=(nm,ends)=>{const L_=legs();
+  const pm=S.pts.filter((p,i)=>ends||(i&&i<S.pts.length-1)).map(p=>`<Placemark><name>${esc(p.type+' '+p.name)}</name><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`).join('');
   const ln=L_.map((l,i)=>`<Placemark><name>Leg ${i+1} ${l.crsTxt} ${Math.round(l.nm)}NM ${hm(l.min)} ${l.alt||''}</name><Style><LineStyle><color>ff000000</color><width>3</width></LineStyle></Style><LineString><tessellate>1</tessellate><coordinates>${S.pts[i].lon},${S.pts[i].lat},0 ${S.pts[i+1].lon},${S.pts[i+1].lat},0</coordinates></LineString></Placemark>`).join('');
-  dl('route.kml',`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Route</name>${pm}${ln}</Document></kml>`,'application/vnd.google-earth.kml+xml')}
+  return `<Folder><name>${nm}</name>${pm}${ln}</Folder>`};
+  const a=one(main?'Primary':'Alternate',true),b=withAlt(()=>one(main?'Alternate':'Primary',false))||'',f=main?a+b:b+a;
+  dl('route.kml',`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Route</name>${f}</Document></kml>`,'application/vnd.google-earth.kml+xml')}
 // ---- Export Map: tiles of paper at true scale (print / save as PDF) ----
 const PAPER={A4:[210,297],A3:[297,420]},MERC=L.CRS.EPSG3857,M0=2*Math.PI*6378137/256; // m/px at z0, equator
 let pmSrc=null,prShow=false,prMaps=[];const pgGrp=L.layerGroup().addTo(map);
@@ -527,7 +535,8 @@ function prCfg(){const [w,h]=PAPER[$('pP').value],l=$('pO').value==='l',m=Math.m
 // zoom where 1 CSS px (1/96 in on paper) = S*0.0254/96 m on the ground at latitude lat
 const zoomFor=(lat,S)=>Math.log2(M0*Math.cos(lat*Math.PI/180)*96/(S*0.0254));
 function prPages(){const c=prCfg(),ll=[];
-  S.pts.forEach((p,i)=>{ll.push([p.lat,p.lon]);if($('shLbl').checked&&p.lbl)ll.push(p.lbl);if($('shBox').checked&&p.box&&i<S.pts.length-1)ll.push(p.box)});
+  const add=a=>a.forEach((p,i)=>{ll.push([p.lat,p.lon]);if($('shLbl').checked&&p.lbl)ll.push(p.lbl);if($('shBox').checked&&p.box&&i<a.length-1)ll.push(p.box)});
+  add(S.pts);if(S.alt&&S.alt.length>1)add(S.alt);
   if(!ll.length)return {c,pages:[],nr:0,nc:0};
   const P=ll.map(x=>MERC.project(L.latLng(x))),xs=P.map(p=>p.x),ys=P.map(p=>p.y);
   // paper mm -> mercator m, using the lowest |lat| so every page is at least this big (overlap never < setting)
@@ -570,7 +579,7 @@ async function buildPages(){const {c,pages,nr,nc}=prPages();if(!pages.length){al
     prMaps.push(m);m.setView(p.center,zoomFor(p.center.lat,c.S),{animate:false});
     const lay=new HiRes({tileSize:128,src,maxNativeZoom:src.max-1,minNativeZoom:Math.max(0,src.min-1),keepBuffer:0,updateWhenIdle:false});
     const ok=new Promise(res=>{const t=setTimeout(res,90000);lay.once('load',()=>{clearTimeout(t);res()})}).then(()=>{$('pInfo').textContent=`โหลดแผนที่ ${++done}/${pages.length} แผ่น`});
-    lay.addTo(m);render(L.layerGroup().addTo(m),true);
+    lay.addTo(m);const rg=L.layerGroup().addTo(m);withAlt(()=>render(rg,true,true));render(rg,true);
     const nb=(r,q)=>r>=0&&r<nr&&q>=0&&q<nc?r*nc+q+1:0,o=c.ov+'mm',el=[],nbs=[];
     [[p.r-1,p.c,`left:0;right:0;top:${o};border-top-width:.4mm`,'top:1mm;left:50%;transform:translateX(-50%)','▲'],
      [p.r+1,p.c,`left:0;right:0;bottom:${o};border-bottom-width:.4mm`,'bottom:1mm;left:50%;transform:translateX(-50%)','▼'],
