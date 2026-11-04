@@ -306,7 +306,10 @@ function profile(L_){const g=$('prG');if(!L_.length){g.innerHTML='<div class="e"
 function terrain(){S.pts.slice(1).forEach((b,i)=>{const a=S.pts[i],k=ekey(a,b);if(k in ELV||ELP[k])return;ELP[k]=1;
   legMaxFt(a,b).then(f=>{delete ELP[k];if(f==null)return;ELV[k]=f;draw()})})}
 // draw route layers into group g; ro=read-only (print pages)
-function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
+// run fn with the other route (S.alt) swapped in as S.pts
+function withAlt(fn){if(!S.alt||S.alt.length<2)return;[S.pts,S.alt]=[S.alt,S.pts];try{return fn()}finally{[S.pts,S.alt]=[S.alt,S.pts]}}
+// noEnds: skip PZ/LZ markers+labels (second route drawn on the same print page)
+function render(g,ro,noEnds){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
   const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
@@ -337,7 +340,7 @@ function render(g,ro){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
     bx.on('click',()=>editBox(i,a.box));
   });
   S.pts.forEach((p,i)=>{ if(i>0){cn+=L_[i-1].nm;cm+=L_[i-1].min}
-    const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:26)*ms;
+    const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:26)*ms;if(noEnds&&(first||last))return;
     const mk=L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
     if(!ro){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()})}
@@ -515,10 +518,12 @@ async function importFile(f){if(!f)return;let t;
 // ---- export ----
 function dl(name,txt,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+txt],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),10000)}
 function exportCSV(){dl('route.csv','type,name,lat,lon,alt_ft\n'+S.pts.map(p=>[p.type,p.name,p.lat,p.lon,p.alt].join(',')).join('\n'),'text/csv')}
-function exportKML(){const L_=legs();
-  const pm=S.pts.map(p=>`<Placemark><name>${esc(p.type+' '+p.name)}</name><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`).join('');
+function exportKML(){const main=(S.ui.route||'main')==='main',one=(nm,ends)=>{const L_=legs();
+  const pm=S.pts.filter((p,i)=>ends||(i&&i<S.pts.length-1)).map(p=>`<Placemark><name>${esc(p.type+' '+p.name)}</name><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`).join('');
   const ln=L_.map((l,i)=>`<Placemark><name>Leg ${i+1} ${l.crsTxt} ${Math.round(l.nm)}NM ${hm(l.min)} ${l.alt||''}</name><Style><LineStyle><color>ff000000</color><width>3</width></LineStyle></Style><LineString><tessellate>1</tessellate><coordinates>${S.pts[i].lon},${S.pts[i].lat},0 ${S.pts[i+1].lon},${S.pts[i+1].lat},0</coordinates></LineString></Placemark>`).join('');
-  dl('route.kml',`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Route</name>${pm}${ln}</Document></kml>`,'application/vnd.google-earth.kml+xml')}
+  return `<Folder><name>${nm}</name>${pm}${ln}</Folder>`};
+  const a=one(main?'Primary':'Alternate',true),b=withAlt(()=>one(main?'Alternate':'Primary',false))||'',f=main?a+b:b+a;
+  dl('route.kml',`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Route</name>${f}</Document></kml>`,'application/vnd.google-earth.kml+xml')}
 // ---- Export Map: tiles of paper at true scale (print / save as PDF) ----
 const PAPER={A4:[210,297],A3:[297,420]},MERC=L.CRS.EPSG3857,M0=2*Math.PI*6378137/256; // m/px at z0, equator
 let pmSrc=null,prShow=false,prMaps=[];const pgGrp=L.layerGroup().addTo(map);
@@ -527,7 +532,8 @@ function prCfg(){const [w,h]=PAPER[$('pP').value],l=$('pO').value==='l',m=Math.m
 // zoom where 1 CSS px (1/96 in on paper) = S*0.0254/96 m on the ground at latitude lat
 const zoomFor=(lat,S)=>Math.log2(M0*Math.cos(lat*Math.PI/180)*96/(S*0.0254));
 function prPages(){const c=prCfg(),ll=[];
-  S.pts.forEach((p,i)=>{ll.push([p.lat,p.lon]);if($('shLbl').checked&&p.lbl)ll.push(p.lbl);if($('shBox').checked&&p.box&&i<S.pts.length-1)ll.push(p.box)});
+  const add=a=>a.forEach((p,i)=>{ll.push([p.lat,p.lon]);if($('shLbl').checked&&p.lbl)ll.push(p.lbl);if($('shBox').checked&&p.box&&i<a.length-1)ll.push(p.box)});
+  add(S.pts);if(S.alt&&S.alt.length>1)add(S.alt);
   if(!ll.length)return {c,pages:[],nr:0,nc:0};
   const P=ll.map(x=>MERC.project(L.latLng(x))),xs=P.map(p=>p.x),ys=P.map(p=>p.y);
   // paper mm -> mercator m, using the lowest |lat| so every page is at least this big (overlap never < setting)
@@ -570,7 +576,7 @@ async function buildPages(){const {c,pages,nr,nc}=prPages();if(!pages.length){al
     prMaps.push(m);m.setView(p.center,zoomFor(p.center.lat,c.S),{animate:false});
     const lay=new HiRes({tileSize:128,src,maxNativeZoom:src.max-1,minNativeZoom:Math.max(0,src.min-1),keepBuffer:0,updateWhenIdle:false});
     const ok=new Promise(res=>{const t=setTimeout(res,90000);lay.once('load',()=>{clearTimeout(t);res()})}).then(()=>{$('pInfo').textContent=`โหลดแผนที่ ${++done}/${pages.length} แผ่น`});
-    lay.addTo(m);render(L.layerGroup().addTo(m),true);
+    lay.addTo(m);const rg=L.layerGroup().addTo(m);withAlt(()=>render(rg,true,true));render(rg,true);
     const nb=(r,q)=>r>=0&&r<nr&&q>=0&&q<nc?r*nc+q+1:0,o=c.ov+'mm',el=[],nbs=[];
     [[p.r-1,p.c,`left:0;right:0;top:${o};border-top-width:.4mm`,'top:1mm;left:50%;transform:translateX(-50%)','▲'],
      [p.r+1,p.c,`left:0;right:0;bottom:${o};border-bottom-width:.4mm`,'bottom:1mm;left:50%;transform:translateX(-50%)','▼'],
