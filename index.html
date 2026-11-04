@@ -158,6 +158,7 @@ body{height:100dvh}
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
   <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
   <div class="row" style="margin:-2px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setShow(false,this.checked)" style="width:auto"> SHOW เส้นทางหลัก</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setShow(true,this.checked)" style="width:auto"> SHOW เส้นทางสำรอง</label></div>
+  <div class="row" style="margin:-4px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shLbl" checked onchange="draw()" style="width:auto"> SHOW PZ CPs LZ</label><label style="flex:none"><input type="checkbox" id="shBox" checked onchange="draw()" style="width:auto"> SHOW DOG LEGs</label></div>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
   <div id="llBox" style="display:none"><div class="sm">Lat / Lon แบบ องศา ลิปดา.ทศนิยม (ไม่ต้องใส่ N/E) เช่น 16 07.01 / 103 46.45</div>
    <div class="row"><input id="fLat" placeholder="16 07.01" inputmode="decimal"><input id="fLon" placeholder="103 46.45" inputmode="decimal"></div></div>
@@ -168,8 +169,6 @@ body{height:100dvh}
   <div class="seg"><button id="sA" onclick="setStyle('anf',1)">NAVIGATION</button><button id="sC" onclick="setStyle('cp',1)">แผนที่แผนสมบูรณ์</button></div>
   <div class="row"><span class="sm" style="flex:none">เส้นทาง</span><select id="lineSt" onchange="S.ui.line=this.value;draw()"><option value="solid">เส้นทึบ</option><option value="dash">เส้นประ</option></select></div>
   <div class="row"><span class="sm" style="flex:none">ขนาดสัญลักษณ์จุด</span><span id="msBox" style="flex:1"></span></div>
-  <label><input type="checkbox" id="shLbl" checked onchange="draw()"> SHOW PZ CPs LZ</label>
-  <label><input type="checkbox" id="shBox" checked onchange="draw()"> SHOW DOG LEGs</label>
   <div class="wh" style="margin-top:8px"><span>Waypoint</span><span style="text-align:right">Dist</span><span style="text-align:right">CRS</span><span style="text-align:right">ETE</span><span style="text-align:right">ALT</span><span></span></div>
   <ul class="wl" id="wpl"></ul>
  </fieldset>
