@@ -63,7 +63,7 @@ fieldset label{display:block;margin:4px 0}
 .pg{position:relative;overflow:hidden;background:#fff;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .pg:last-child{break-after:auto;page-break-after:auto}
 .pg .ov{position:absolute;z-index:900;pointer-events:none}.pm{position:relative;overflow:hidden}
-.pg .ov{border:0 dashed #d00}
+.pg .ov{border:0 solid #d00}
 .pg .inf{display:flex;align-items:center;gap:4mm;height:8mm;padding-top:1mm;font:8pt Tahoma,sans-serif;color:#000;white-space:nowrap;overflow:hidden}
 .pg .nb{color:#d00;font-weight:bold}
 .sb{display:flex;align-items:center;gap:1.5mm}.sb i{display:inline-block;height:1.6mm;border:.25mm solid #000}
@@ -635,11 +635,10 @@ async function buildPages(){const {c,pages,nr,nc}=prPages();if(!pages.length){al
     const ok=new Promise(res=>{const t=setTimeout(res,90000);lay.once('load',()=>{clearTimeout(t);res()})}).then(()=>{$('pInfo').textContent=`โหลดแผนที่ ${++done}/${pages.length} แผ่น`});
     lay.addTo(m);drawRoutes(L.layerGroup().addTo(m),true);
     const nb=(r,q)=>r>=0&&r<nr&&q>=0&&q<nc?r*nc+q+1:0,o=c.ov+'mm',el=[],nbs=[];
-    [[p.r-1,p.c,`left:0;right:0;top:${o};border-top-width:.4mm`,'top:1mm;left:50%;transform:translateX(-50%)','▲'],
-     [p.r+1,p.c,`left:0;right:0;bottom:${o};border-bottom-width:.4mm`,'bottom:1mm;left:50%;transform:translateX(-50%)','▼'],
-     [p.r,p.c-1,`top:0;bottom:0;left:${o};border-left-width:.4mm`,'left:1mm;top:50%;transform:translateY(-50%)','◀'],
-     [p.r,p.c+1,`top:0;bottom:0;right:${o};border-right-width:.4mm`,'right:1mm;top:50%;transform:translateY(-50%)','▶']]
-     .forEach(([r,q,ls,ts,a])=>{const n=nb(r,q);if(n){el.push(`<div class="ov" style="${ls}"></div>`);nbs.push(`${a}${n}`)}});
+    const tk='6mm',h=(y,e)=>[`left:0;width:${tk};${y}:${o};border-${e}-width:.5mm`,`right:0;width:${tk};${y}:${o};border-${e}-width:.5mm`],
+      v=(x,e)=>[`top:0;height:${tk};${x}:${o};border-${e}-width:.5mm`,`bottom:0;height:${tk};${x}:${o};border-${e}-width:.5mm`];
+    [[p.r-1,p.c,h('top','top'),'▲'],[p.r+1,p.c,h('bottom','bottom'),'▼'],[p.r,p.c-1,v('left','left'),'◀'],[p.r,p.c+1,v('right','right'),'▶']]
+     .forEach(([r,q,ls,a])=>{const n=nb(r,q);if(n){ls.forEach(x=>el.push(`<div class="ov" style="${x}"></div>`));nbs.push(`${a}${n}`)}});
     d.insertAdjacentHTML('beforeend',el.join(''));
     if(c.ft)pg.insertAdjacentHTML('beforeend',`<div class="inf"><b>แผ่น ${i+1}/${pages.length}</b><span>แถว ${p.r+1} คอลัมน์ ${p.c+1} · 1:${c.S.toLocaleString()} · ${c.paper}</span>${bar(barK,km+' km')}${bar(barN,nmL+' NM')}${nbs.length?`<span class="nb">ต่อ: ${nbs.join(' ')}</span>`:''}</div>`);
     return ok}));
