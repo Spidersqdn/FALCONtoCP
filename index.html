@@ -27,6 +27,13 @@ body.hide #side{display:none}
 #sld .sbt{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}#sld .sbt button{margin:0}
 #sld canvas{width:100%;height:auto;display:block;border:1px solid var(--ln,#3d4147)}
 @media (max-width:700px){#sld .sfm{grid-template-columns:1fr 1fr}#sld .sbt{grid-template-columns:1fr 1fr}}
+#pvw{position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}
+#pvw .pbox{background:var(--bg,#1b1d20);border:1px solid var(--ln,#3d4147);border-radius:8px;padding:12px;width:min(1200px,100%)}
+#pvw .phd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}#pvw .phd button{width:auto;margin:0;padding:4px 10px}
+#pvw .pbt{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}#pvw .pbt button{margin:0}
+#pvw .pgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+#pvw figure{margin:0;text-align:center}#pvw img{width:100%;height:auto;background:#fff;display:block;box-shadow:0 2px 8px rgba(0,0,0,.5)}#pvw figcaption{font-size:12px;color:var(--mu);margin-top:4px}
+@media print{body.prtmode #pvw{display:none!important}}
 #expM{display:none}#expM.on{display:flex}
 .b3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.b3 button{margin:0;padding:9px 4px;font-weight:bold}
 @media print{#tog{display:none}}
@@ -735,20 +742,29 @@ async function buildPages(){const {c,pages,nr,nc}=prPages();if(!pages.length){al
     if(c.ft)pg.insertAdjacentHTML('beforeend',`<div class="inf"><b>แผ่น ${i+1}/${pages.length}</b><span>แถว ${p.r+1} คอลัมน์ ${p.c+1} · 1:${c.S.toLocaleString()} · ${c.paper}</span>${bar(barK,km+' km')}${bar(barN,nmL+' NM')}${nbs.length?`<span class="nb">ต่อ: ${nbs.join(' ')}</span>`:''}</div>`);
     return ok}));
   return {c,n:pages.length}}
-async function printPages(){const r=await buildPages();if(!r)return;
-  $('pInfo').textContent=`พร้อมพิมพ์ ${r.n} แผ่น`;document.body.classList.add('prtmode');setTimeout(()=>window.print(),300)}
-// Export PDF: rasterise each sheet (html2canvas) into a true-size PDF page (jsPDF); independent of the browser's print margins
 const loadJS=u=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=()=>no(new Error(u));document.head.appendChild(s)});
-async function exportPDF(){try{
+// PREVIEW: build + rasterise every sheet once, show them, then save PDF / print from the preview
+let PV=null;
+async function previewPages(mode){try{
   if(!window.jspdf)await loadJS('lib/jspdf.umd.min.js');if(!window.html2canvas)await loadJS('lib/html2canvas.min.js');
-  const r=await buildPages();if(!r)return;const {c}=r,pgs=[...$('prt').querySelectorAll('.pg')];
-  const pdf=new jspdf.jsPDF({unit:'mm',format:c.paper.toLowerCase(),orientation:c.land?'l':'p',compress:true});
-  for(let i=0;i<pgs.length;i++){$('pInfo').textContent=`สร้าง PDF แผ่น ${i+1}/${pgs.length}...`;
+  const r=await buildPages();if(!r)return;const {c}=r,pgs=[...$('prt').querySelectorAll('.pg')],imgs=[];
+  for(let i=0;i<pgs.length;i++){$('pInfo').textContent=`สร้างตัวอย่าง แผ่น ${i+1}/${pgs.length}...`;
     const cv=await html2canvas(pgs[i],{scale:2,useCORS:true,backgroundColor:'#fff',logging:false,
       onclone:d=>{d.body.classList.add('pdfcap');d.getElementById('prt').style.left='0'}});
-    if(i)pdf.addPage();pdf.addImage(cv.toDataURL('image/jpeg',0.9),'JPEG',c.m,c.m,c.pw,c.ph+c.ft,undefined,'FAST');cv.width=cv.height=0}
-  pdf.save(`map_1-${c.S/1000}k_${c.paper}_${pgs.length}p.pdf`);$('pInfo').textContent=`บันทึก PDF ${pgs.length} แผ่นแล้ว`;
-  }catch(e){alert('Export PDF ไม่สำเร็จ: '+e.message);$('pInfo').textContent='Export PDF ไม่สำเร็จ'}}
+    imgs.push(cv.toDataURL('image/jpeg',0.9));cv.width=cv.height=0}
+  PV={c,imgs};$('pInfo').textContent=`ตัวอย่าง ${imgs.length} แผ่น`;
+  const d=$('pvw')||document.body.appendChild(Object.assign(document.createElement('div'),{id:'pvw'}));
+  d.innerHTML=`<div class="pbox"><div class="phd"><b>ตัวอย่างก่อน${mode=='print'?'พิมพ์':'บันทึก PDF'} · ${imgs.length} แผ่น · 1:${c.S.toLocaleString()} · ${c.paper} ${c.land?'แนวนอน':'แนวตั้ง'}</b><button onclick="pvClose()">✕</button></div>
+    <div class="pbt"><button class="${mode=='pdf'?'pri':''}" onclick="pvPDF()">บันทึก PDF</button><button class="${mode=='print'?'pri':''}" onclick="pvPrint()">พิมพ์</button><button onclick="pvClose()">ยกเลิก</button></div>
+    <div class="pgs">${imgs.map((u,k)=>`<figure><img src="${u}" style="aspect-ratio:${c.pw}/${c.ph+c.ft}"><figcaption>แผ่น ${k+1}</figcaption></figure>`).join('')}</div></div>`;
+  d.style.display='flex'}catch(e){alert('สร้างตัวอย่างไม่สำเร็จ: '+e.message);$('pInfo').textContent='สร้างตัวอย่างไม่สำเร็จ'}}
+function pvClose(){const d=$('pvw');if(d){d.style.display='none';d.innerHTML=''}PV=null;prUpd()}
+function pvPDF(){if(!PV)return;const {c,imgs}=PV;
+  const pdf=new jspdf.jsPDF({unit:'mm',format:c.paper.toLowerCase(),orientation:c.land?'l':'p',compress:true});
+  imgs.forEach((u,i)=>{if(i)pdf.addPage();pdf.addImage(u,'JPEG',c.m,c.m,c.pw,c.ph+c.ft,undefined,'FAST')});
+  pdf.save(`map_1-${c.S/1000}k_${c.paper}_${imgs.length}p.pdf`);$('pInfo').textContent=`บันทึก PDF ${imgs.length} แผ่นแล้ว`}
+function pvPrint(){if(!PV)return;$('pInfo').textContent=`พิมพ์ ${PV.imgs.length} แผ่น`;document.body.classList.add('prtmode');setTimeout(()=>window.print(),300)}
+const printPages=()=>previewPages('print'),exportPDF=()=>previewPages('pdf');
 addEventListener('afterprint',()=>{document.body.classList.remove('prtmode');prUpd()});
 // ---- init ----
 const qm=new URLSearchParams(location.search).get('map')||(window.CONFIG&&CONFIG.MAP_URL);
