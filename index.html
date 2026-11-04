@@ -156,6 +156,7 @@ body{height:100dvh}
   </details>
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
+  <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
   <div id="llBox" style="display:none"><div class="sm">Lat / Lon แบบ องศา ลิปดา.ทศนิยม (ไม่ต้องใส่ N/E) เช่น 16 07.01 / 103 46.45</div>
    <div class="row"><input id="fLat" placeholder="16 07.01" inputmode="decimal"><input id="fLon" placeholder="103 46.45" inputmode="decimal"></div></div>
@@ -261,7 +262,22 @@ function undo(){if(!HIST.length)return;undoing=true;S.pts=JSON.parse(HIST.pop())
 function fixTypes(){const n=S.pts.length,dc=Object.values(COL).map(c=>c.toLowerCase());
   S.pts.forEach((p,i)=>{const want=i===0?'PZ':i===n-1?'LZ':'CP';if(kind(p.type)===want)return;
     p.type=want==='CP'?'CP'+i:want;if(p.lcol!=null&&dc.includes(String(p.lcol).toLowerCase()))delete p.lcol})}
-function draw(){fixTypes();snap();grp.clearLayers();const r=render(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain()}
+// ---- primary / alternate route: S.pts = route being edited, S.alt = the other one; PZ & LZ are shared ----
+const SHARE=['name','lat','lon','ltxt','lcol','lsc','msc','tbx','noTbl'];
+function syncEnds(){const a=S.alt,n=S.pts.length;if(!a||a.length<2||n<2)return;
+  [[0,0],[n-1,a.length-1]].forEach(([i,j])=>SHARE.forEach(k=>{if(S.pts[i][k]===undefined)delete a[j][k];else a[j][k]=S.pts[i][k]}))}
+function routeBtns(){const r=S.ui.route||'main';$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=S.alt?'':'none'}
+function setRoute(r){const cur=S.ui.route||'main';if(r===cur)return;
+  if(!S.alt){if(S.pts.length<2)return alert('สร้างเส้นทางหลักให้มี PZ และ LZ ก่อน');const f=S.pts[0],z=S.pts[S.pts.length-1];
+    S.alt=[{type:'PZ',name:f.name,lat:f.lat,lon:f.lon,alt:f.alt},{type:'LZ',name:z.name,lat:z.lat,lon:z.lon,alt:''}]}
+  syncEnds();[S.pts,S.alt]=[S.alt,S.pts];S.ui.route=r;HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
+function delAlt(){if(!S.alt||!confirm('ลบเส้นทางสำรอง?'))return;if((S.ui.route||'main')==='alt'){syncEnds();S.pts=S.alt}
+  S.alt=null;S.ui.route='main';HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
+// the route not being edited: dashed purple line + small dots, not editable
+function ghost(g){const a=S.alt;if(!a||a.length<2)return;const c=(S.ui.route||'main')==='alt'?'#5BC0EB':'#B04CE0';
+  L.polyline(a.map(p=>[p.lat,p.lon]),{color:c,weight:3,opacity:.75,dashArray:'8 7',interactive:false}).addTo(g);
+  a.slice(1,-1).forEach(p=>L.circleMarker([p.lat,p.lon],{radius:5,color:c,weight:2,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(g))}
+function draw(){fixTypes();syncEnds();snap();grp.clearLayers();ghost(grp);const r=render(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain()}
 // ---- leg ALT from terrain: highest ground along the leg (AWS Terrarium DEM, z12 ~30 m), round up to 100 ft, + 500 ft ----
 const ELV={},ELP={},DEM={};const ekey=(a,b)=>[a.lat,a.lon,b.lat,b.lon].join(',');
 function autoAlt(a,b){const f=b&&ELV[ekey(a,b)];return f==null?null:String(Math.ceil(f/100)*100+500)}
@@ -405,11 +421,12 @@ function list(L_,tot,tmin){
     +(L_.length?`<li class="v" style="color:var(--au);font:bold 12px Consolas,monospace">TOTAL ${tot.toFixed(1)} NM · ${hm(tmin)}</li>`:'');
   profile(L_);$('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
-function reverseRoute(){const n=S.pts.length;if(n<2)return;
+function revPts(){const n=S.pts.length;if(n<2)return;
   const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx,bsc:p.bsc,ln:p.ln,lw:p.lw}));
   S.pts.reverse();S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined,lw:undefined};Object.assign(p,d)});
   const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2);[f.lcol,z.lcol]=[z.lcol,f.lcol];const dc=[COL.PZ,COL.LZ].map(c=>c.toLowerCase());[f,z].forEach(p=>{if(p.lcol==null||dc.includes(String(p.lcol).toLowerCase()))delete p.lcol})}
-  draw()}
+}
+function reverseRoute(){if(S.pts.length<2)return;revPts();if(S.alt&&S.alt.length>1){[S.pts,S.alt]=[S.alt,S.pts];revPts();fixTypes();[S.pts,S.alt]=[S.alt,S.pts]}draw()}
 function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
 function resetBox(...ix){ix.forEach(k=>{const p=S.pts[k];if(p){delete p.boff;delete p.box}})}
 function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;resetBox(i-1,i,i+d-1,i+d);[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
@@ -590,5 +607,5 @@ if(!S.pts.length)S.pts=[{type:'PZ',name:'ท่าอากาศยานร้
 if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^https?:/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
 [...(window.CONFIG&&CONFIG.MAPS||[]),{name:'OpenStreetMap (offline cache)',url:'osm'}].forEach(m=>$('mapSel').add(new Option(m.name,m.url)));
 $('mapSel').add(new Option('-- URL เอง --',''));$('mapSel').value=$('tileUrl').value===OSM?'osm':$('tileUrl').value;
-$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,'S.ui.msc=this.value/100;S.pts.forEach(q=>delete q.msc);draw()');setMode(S.ui.mode);setStyle(S.ui.style);setBase();togTxt();map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:innerWidth<700?[30,30]:[120,120]});cacheInfo();
+$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,'S.ui.msc=this.value/100;S.pts.forEach(q=>delete q.msc);draw()');setMode(S.ui.mode);routeBtns();setStyle(S.ui.style);setBase();togTxt();map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:innerWidth<700?[30,30]:[120,120]});cacheInfo();
 </script></body></html>
