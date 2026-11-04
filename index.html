@@ -163,6 +163,9 @@ body{height:100dvh}
  <fieldset><legend>MAP</legend>
   <select id="mapSel" style="width:100%" onchange="pickMap(this.value)"></select>
   <label><input type="checkbox" id="offl" checked onchange="save()"> เก็บแผนที่ที่เปิดดูไว้ใช้ offline</label>
+  <div class="row" style="gap:6px;margin:4px 0"><button class="pri" onclick="$('lmIn').click()">📁 เปิดไฟล์แผนที่ (.pmtiles)</button><button id="lmDel" onclick="lmDel()" style="display:none;flex:0 0 auto" title="ลบแผนที่นี้ออกจากเครื่อง">ลบ</button></div>
+  <input type="file" id="lmIn" accept=".pmtiles" multiple style="display:none" onchange="lmAdd(this.files);this.value=''">
+  <div class="sm" id="lmInfo">ไฟล์ที่เปิดจะเก็บไว้ในเครื่อง ใช้ได้โดยไม่ต้องมีเน็ต</div>
   <div class="sm" id="cacheInfo">-</div>
   <button onclick="clearCache()">ล้าง cache แผนที่</button>
   <details><summary class="sm">ขั้นสูง: URL แผนที่เอง</summary>
@@ -225,9 +228,31 @@ let S={pts:[]};try{S=JSON.parse(localStorage.getItem('routeS'))||S}catch(e){}
 S.ui=Object.assign({mode:'map',style:'anf',line:'solid',lbl:true,box:true,off:true},S.ui||{});
 const map=L.map('map',{zoomSnap:0.25}).setView([16.12,103.55],11);
 let base=null;
-function pmLayer(u){const p=new pmtiles.PMTiles(u);pmSrc={u,p,max:12};const l=pmtiles.leafletRasterLayer(p,{maxZoom:18,maxNativeZoom:12});
+// ---- local map files (.pmtiles picked from the device, kept in IndexedDB so they work offline) ----
+const LM={};let lmDB=null;
+const lmOpen=()=>lmDB||(lmDB=new Promise((ok,no)=>{const r=indexedDB.open('falcon2cp-maps',1);r.onupgradeneeded=()=>r.result.createObjectStore('maps');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}));
+const lmTx=(m,f)=>lmOpen().then(db=>new Promise((ok,no)=>{const t=db.transaction('maps',m),q=f(t.objectStore('maps'));t.oncomplete=()=>ok(q&&q.result);t.onerror=t.onabort=()=>no(t.error)}));
+const lmKey=n=>'local:'+n,lmName=u=>u.slice(6);
+function lmOpts(){const sel=$('mapSel');[...sel.options].filter(o=>o.value.startsWith('local:')).forEach(o=>o.remove());
+  const at=[...sel.options].findIndex(o=>o.value==='osm');
+  Object.keys(LM).sort().forEach(n=>sel.add(new Option('📁 '+n.replace(/\.pmtiles$/i,'')+' (ในเครื่อง)',lmKey(n)),at<0?null:sel.options[at]));
+  const u=$('tileUrl').value;if([...sel.options].some(o=>o.value===u))sel.value=u;$('lmDel').style.display=u.startsWith('local:')?'':'none'}
+async function lmInit(){try{const ks=await lmTx('readonly',s=>s.getAllKeys());for(const k of ks)LM[k]=await lmTx('readonly',s=>s.get(k))}catch(e){}
+  lmOpts();if($('tileUrl').value.startsWith('local:'))setBase()}
+async function lmAdd(files){files=[...files].filter(f=>/\.pmtiles$/i.test(f.name));if(!files.length)return alert('เลือกไฟล์ .pmtiles');
+  navigator.storage?.persist?.().catch(()=>{});let ok=true;
+  for(const f of files){LM[f.name]=f;$('lmInfo').textContent=`กำลังบันทึก ${f.name} (${(f.size/1048576).toFixed(0)} MB) ลงเครื่อง…`;
+    try{await lmTx('readwrite',s=>s.put(f,f.name))}catch(e){ok=false}}
+  $('lmInfo').textContent=ok?`บันทึกแล้ว ${files.map(f=>f.name).join(', ')} · ใช้ได้โดยไม่ต้องมีเน็ต`:'พื้นที่เครื่องไม่พอ: ใช้ได้เฉพาะรอบนี้ ปิดแอปแล้วต้องเปิดไฟล์ใหม่';
+  lmOpts();pickMap(lmKey(files[0].name));$('mapSel').value=lmKey(files[0].name)}
+async function lmDel(){const u=$('tileUrl').value;if(!u.startsWith('local:'))return;const n=lmName(u);if(!confirm(`ลบแผนที่ ${n} ออกจากเครื่อง?`))return;
+  delete LM[n];try{await lmTx('readwrite',s=>s.delete(n))}catch(e){}
+  const first=$('mapSel').options[0];pickMap(first?first.value:'osm');lmOpts();$('lmInfo').textContent=`ลบ ${n} แล้ว`}
+function pmLayer(u){const f=u.startsWith('local:')&&LM[lmName(u)];
+  if(u.startsWith('local:')&&!f){pmSrc=null;return L.layerGroup()}
+  const p=new pmtiles.PMTiles(f?new pmtiles.FileSource(f):u);pmSrc={u,p,max:12};const l=pmtiles.leafletRasterLayer(p,{maxZoom:18,maxNativeZoom:12});
   p.getHeader().then(h=>{pmSrc.max=h.maxZoom;pmSrc.min=h.minZoom;l.options.maxNativeZoom=h.maxZoom;l.options.minNativeZoom=h.minZoom;l.redraw()}).catch(()=>{});return l;}
-function pickMap(v){if(/500k/i.test(v))$('pS').value='500000';else if(/250k/i.test(v))$('pS').value='250000';if(v==='osm'){$('tileUrl').value=OSM}else if(v)$('tileUrl').value=v;setBase()}
+function pickMap(v){if(/500k/i.test(v))$('pS').value='500000';else if(/250k/i.test(v))$('pS').value='250000';if(v==='osm'){$('tileUrl').value=OSM}else if(v)$('tileUrl').value=v;setBase();$('lmDel').style.display=$('tileUrl').value.startsWith('local:')?'':'none'}
 function setBase(){ if(base)map.removeLayer(base);const u=$('tileUrl').value;
   base=u===OSM?L.tileLayer(OSM,{maxZoom:19,crossOrigin:true,attribution:'© OpenStreetMap'})
     :/\.pmtiles$/i.test(u)?pmLayer(u)
@@ -774,8 +799,8 @@ if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.
 if(S.pr){$('pS').value=S.pr.S;$('pP').value=S.pr.P;$('pO').value=S.pr.O;$('pOv').value=S.pr.ov;$('pM').value=S.pr.m;$('pLb').checked=S.pr.lb!==false}else if(/500k/i.test($('tileUrl').value))$('pS').value='500000';
 $('shLbl').checked=S.ui.lbl;$('shBox').checked=S.ui.box;$('offl').checked=S.ui.off;
 if(!S.pts.length&&!localStorage.getItem('routeS'))S.pts=[{type:'PZ',name:'ท่าอากาศยานร้อยเอ็ด',lat:16.1168,lon:103.7741,alt:'1100'},{type:'CP2',name:'สนาม ฮ. พล.ร.6',lat:16.105,lon:103.545,alt:'1100'},{type:'LZ',name:'สนาม ฮ. รร.สารคามพิทยาคม',lat:16.184,lon:103.3,alt:''}];
-if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^https?:/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
+if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^(https?|local):/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
 [...(window.CONFIG&&CONFIG.MAPS||[]),{name:'OpenStreetMap (offline cache)',url:'osm'}].forEach(m=>$('mapSel').add(new Option(m.name,m.url)));
 $('mapSel').add(new Option('-- URL เอง --',''));$('mapSel').value=$('tileUrl').value===OSM?'osm':$('tileUrl').value;
-globSizes();setMode(S.ui.mode);routeBtns();setStyle(S.ui.style);setBase();togTxt();if(S.pts.length)map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:innerWidth<700?[30,30]:[120,120]});else map.setView([16.1168,103.7741],9);cacheInfo();
+globSizes();setMode(S.ui.mode);routeBtns();setStyle(S.ui.style);setBase();togTxt();if(S.pts.length)map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:innerWidth<700?[30,30]:[120,120]});else map.setView([16.1168,103.7741],9);cacheInfo();lmInit();
 </script></body></html>
