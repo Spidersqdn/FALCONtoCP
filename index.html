@@ -176,7 +176,7 @@ body{height:100dvh}
   <input type="file" id="imp" accept=".csv,.kml,.kmz,.gpx" hidden onchange="importFile(this.files[0]).catch(()=>alert('อ่านไฟล์ไม่ได้'));this.value=''">
   <button class="pri" onclick="imp.click()">Import (CSV/KML/KMZ/GPX)</button>
   <button onclick="exportKML()">Export KML</button>
-  <div class="b3"><button onclick="undo()" title="Ctrl+Z">↶ UNDO</button><button onclick="reverseRoute()" title="กลับทิศเส้นทาง">⇄ BACK TRACK</button><button onclick="if(confirm('ลบทุกจุด?')){S.pts=[];draw()}">CLEAR</button></div>
+  <div class="b3"><button onclick="undo()" title="Ctrl+Z">↶ UNDO</button><button onclick="reverseRoute()" title="กลับทิศเส้นทาง">⇄ BACK TRACK</button><button onclick="clearAll()">CLEAR</button></div>
  </fieldset>
  <fieldset><legend>Export Map (พิมพ์ขนาดจริง แบ่งแผ่น)</legend>
   <div class="row"><div><div class="sm">มาตราส่วน 1:</div><select id="pS" onchange="prUpd()"><option value="50000">50,000<option value="100000">100,000<option value="250000" selected>250,000<option value="500000">500,000<option value="1000000">1,000,000</select></div>
@@ -286,6 +286,9 @@ function setRoute(r){const cur=S.ui.route||'main';if(r===cur)return;
 // swap roles: primary becomes alternate and vice versa (the route being edited stays the same line)
 function swapRoutes(){if(!S.alt)return;syncEnds();S.ui.route=(S.ui.route||'main')==='alt'?'main':'alt';
   [S.ui.showMain,S.ui.showAlt]=[S.ui.showAlt,S.ui.showMain];HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
+// CLEAR: remove everything (primary + alternate routes and all their labels, tables, leg boxes)
+function clearAll(){if(!confirm('ลบทุกอย่าง (เส้นทางหลัก + สำรอง)?'))return;S.pts=[];S.alt=null;S.ui.route='main';
+  delete S.ui.showMain;delete S.ui.showAlt;HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 function delAlt(){if(!S.alt||!confirm('ลบเส้นทางสำรอง?'))return;if((S.ui.route||'main')==='alt'){syncEnds();S.pts=S.alt}
   S.alt=null;S.ui.route='main';HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 // SHOW toggles: isAlt=true -> alternate route
@@ -632,9 +635,9 @@ const qm=new URLSearchParams(location.search).get('map')||(window.CONFIG&&CONFIG
 if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.cfg.tms;$('kt').value=S.cfg.kt&&S.cfg.kt!='90'?S.cfg.kt:120;if(S.cfg.osm)$('tileUrl').value=OSM}
 if(S.pr){$('pS').value=S.pr.S;$('pP').value=S.pr.P;$('pO').value=S.pr.O;$('pOv').value=S.pr.ov;$('pM').value=S.pr.m;$('pLb').checked=S.pr.lb!==false}else if(/500k/i.test($('tileUrl').value))$('pS').value='500000';
 $('shLbl').checked=S.ui.lbl;$('shBox').checked=S.ui.box;$('offl').checked=S.ui.off;
-if(!S.pts.length)S.pts=[{type:'PZ',name:'ท่าอากาศยานร้อยเอ็ด',lat:16.1168,lon:103.7741,alt:'1100'},{type:'CP2',name:'สนาม ฮ. พล.ร.6',lat:16.105,lon:103.545,alt:'1100'},{type:'LZ',name:'สนาม ฮ. รร.สารคามพิทยาคม',lat:16.184,lon:103.3,alt:''}];
+if(!S.pts.length&&!localStorage.getItem('routeS'))S.pts=[{type:'PZ',name:'ท่าอากาศยานร้อยเอ็ด',lat:16.1168,lon:103.7741,alt:'1100'},{type:'CP2',name:'สนาม ฮ. พล.ร.6',lat:16.105,lon:103.545,alt:'1100'},{type:'LZ',name:'สนาม ฮ. รร.สารคามพิทยาคม',lat:16.184,lon:103.3,alt:''}];
 if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^https?:/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
 [...(window.CONFIG&&CONFIG.MAPS||[]),{name:'OpenStreetMap (offline cache)',url:'osm'}].forEach(m=>$('mapSel').add(new Option(m.name,m.url)));
 $('mapSel').add(new Option('-- URL เอง --',''));$('mapSel').value=$('tileUrl').value===OSM?'osm':$('tileUrl').value;
-$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,'S.ui.msc=this.value/100;S.pts.forEach(q=>delete q.msc);draw()');setMode(S.ui.mode);routeBtns();setStyle(S.ui.style);setBase();togTxt();map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:innerWidth<700?[30,30]:[120,120]});cacheInfo();
+$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,'S.ui.msc=this.value/100;S.pts.forEach(q=>delete q.msc);draw()');setMode(S.ui.mode);routeBtns();setStyle(S.ui.style);setBase();togTxt();if(S.pts.length)map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:innerWidth<700?[30,30]:[120,120]});else map.setView([16.1168,103.7741],9);cacheInfo();
 </script></body></html>
