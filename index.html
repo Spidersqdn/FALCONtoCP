@@ -159,9 +159,7 @@ body{height:100dvh}
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
   <div id="llBox" style="display:none"><div class="sm">Lat / Lon แบบ องศา ลิปดา.ทศนิยม (ไม่ต้องใส่ N/E) เช่น 16 07.01 / 103 46.45</div>
    <div class="row"><input id="fLat" placeholder="16 07.01" inputmode="decimal"><input id="fLon" placeholder="103 46.45" inputmode="decimal"></div></div>
-  <div class="row"><div><div class="sm">Type</div><input id="fType" list="types" placeholder="อัตโนมัติ"></div>
-   <div><div class="sm">ALT ft</div><input id="fAlt" value="1100"></div></div>
-  <datalist id="types"><option>PZ<option>CP<option>LZ<option>SP<option>RP</datalist>
+  <div><div class="sm">ALT ft</div><input id="fAlt" value="1100"></div>
   <div class="sm">ชื่อจุด / Remark</div><input id="fName" style="width:100%" placeholder="เช่น สนาม ฮ. พล.ร.6">
   <div class="row" style="margin-top:8px"><button class="pri" onclick="addFromForm()">Add ROUTE</button></div>
   <div class="sm" id="modeHint"></div>
@@ -401,7 +399,7 @@ function list(L_,tot,tmin){
    <div class="btns"><button onclick="mv(${i},-1)" title="เลื่อนขึ้น">↑</button><button class="x" onclick="resetBox(${i}-1);S.pts.splice(${i},1);draw()" title="ลบ">✕</button>
     <button onclick="mv(${i},1)" title="เลื่อนลง">↓</button><button onclick="ins(${i})" title="แทรกจุดถัดไป">↓+</button>
     <button onclick="this.closest('li').querySelector('.ed').classList.toggle('on')" title="แก้ไข" style="grid-column:span 2">✎</button></div></div>
-   <div class="ed"><input value="${esc(p.type)}" title="Type" onchange="S.pts[${i}].type=this.value;draw()"><input value="${esc(p.name)}" title="Name" onchange="S.pts[${i}].name=this.value;draw()" style="grid-column:span 2">
+   <div class="ed"><input value="${esc(p.name)}" title="Name" onchange="S.pts[${i}].name=this.value;draw()" style="grid-column:span 3">
     <input value="${esc(p.alt)}" title="ALT" onchange="S.pts[${i}].alt=this.value;draw()"><span></span>
     <input value="${ddm(p.lat)}" title="Lat (DD MM.mm)" inputmode="decimal" onchange="setLL(${i},'lat',this.value)" style="grid-column:span 2"><input value="${ddm(p.lon)}" title="Lon (DDD MM.mm)" inputmode="decimal" onchange="setLL(${i},'lon',this.value)" style="grid-column:span 2"></div></li>`}).join('')
     +(L_.length?`<li class="v" style="color:var(--au);font:bold 12px Consolas,monospace">TOTAL ${tot.toFixed(1)} NM · ${hm(tmin)}</li>`:'');
@@ -452,8 +450,8 @@ function parseCoord(v){v=String(v).trim().toUpperCase();if(!v)return null;
   if(n.some(isNaN)||!n.length)return null;const d=Math.abs(n[0])+(n[1]||0)/60+(n[2]||0)/3600;return +((neg?-1:1)*d).toFixed(6)}
 function autoType(){if(!S.pts.length)return 'PZ';return 'CP'+(Math.max(0,...S.pts.map(p=>+(/^CP(\d+)/i.exec(p.type)||[0,0])[1]))+1)}
 function addPt(lat,lon){const n=S.pts.length,at=n&&kind(S.pts[n-1].type)==='LZ'?n-1:n; // keep LZ last
-  resetBox(at-1);S.pts.splice(at,0,{type:$('fType').value.trim()||autoType(),name:$('fName').value.trim(),lat:+lat.toFixed(6),lon:+lon.toFixed(6),alt:$('fAlt').value.trim()});
-  $('fName').value='';$('fType').value='';draw()}
+  resetBox(at-1);S.pts.splice(at,0,{type:autoType(),name:$('fName').value.trim(),lat:+lat.toFixed(6),lon:+lon.toFixed(6),alt:$('fAlt').value.trim()});
+  $('fName').value='';draw()}
 function addFromForm(){if(S.ui.mode==='map')return alert('โหมด On MAP: คลิกบนแผนที่เพื่อวางจุด');
   const la=parseCoord($('fLat').value),lo=parseCoord($('fLon').value);if(la===null||lo===null)return alert('ใส่ Lat/Lon ให้ถูกต้อง');
   addPt(la,lo);map.panTo([la,lo]);$('fLat').value=$('fLon').value=''}
