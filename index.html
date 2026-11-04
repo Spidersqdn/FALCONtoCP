@@ -264,7 +264,9 @@ function fixTypes(){const n=S.pts.length,dc=Object.values(COL).map(c=>c.toLowerC
 // ---- primary / alternate route: S.pts = route being edited, S.alt = the other one; PZ & LZ are shared ----
 const SHARE=['name','lat','lon','ltxt','lcol','lsc','msc','tbx','noTbl'];
 function syncEnds(){const a=S.alt,n=S.pts.length;if(!a||a.length<2||n<2)return;
-  [[0,0],[n-1,a.length-1]].forEach(([i,j])=>SHARE.forEach(k=>{if(S.pts[i][k]===undefined)delete a[j][k];else a[j][k]=S.pts[i][k]}))}
+  [[0,0],[n-1,a.length-1]].forEach(([i,j])=>{SHARE.forEach(k=>{if(S.pts[i][k]===undefined)delete a[j][k];else a[j][k]=S.pts[i][k]});
+    const altP=(S.ui.route||'main')==='alt'?S.pts[i]:a[j],o=altP===a[j]?S.pts[i]:a[j],lo=o.loff||[0.05,0];
+    if(!altP.loff||(altP.loff[0]===lo[0]&&altP.loff[1]===lo[1])){altP.loff=[lo[0]-0.1,lo[1]];delete altP.lbl}})}
 function routeBtns(){const r=S.ui.route||'main';$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=S.alt?'':'none'}
 function setRoute(r){const cur=S.ui.route||'main';if(r===cur)return;
   if(!S.alt){if(S.pts.length<2)return alert('สร้างเส้นทางหลักให้มี PZ และ LZ ก่อน');const f=S.pts[0],z=S.pts[S.pts.length-1];
@@ -308,8 +310,9 @@ function terrain(){S.pts.slice(1).forEach((b,i)=>{const a=S.pts[i],k=ekey(a,b);i
 // draw route layers into group g; ro=read-only (print pages)
 // run fn with the other route (S.alt) swapped in as S.pts
 function withAlt(fn){if(!S.alt||S.alt.length<2)return;[S.pts,S.alt]=[S.alt,S.pts];try{return fn()}finally{[S.pts,S.alt]=[S.alt,S.pts]}}
-// noEnds: skip PZ/LZ markers+labels (second route drawn on the same print page)
-function render(g,ro,noEnds){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf';
+// noEnds: skip PZ/LZ markers (second route drawn on the same print page); its PZ/LZ tables are still drawn
+function render(g,ro,noEnds){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf',cur=S.ui.route||'main';
+  const rName=!S.alt?'':((noEnds?cur!=='alt':cur==='alt')?'สำรอง':'หลัก'); // top-left table cell names the route
   const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
@@ -340,14 +343,14 @@ function render(g,ro,noEnds){const L_=legs(),n=S.pts.length,anf=S.ui.style==='an
     bx.on('click',()=>editBox(i,a.box));
   });
   S.pts.forEach((p,i)=>{ if(i>0){cn+=L_[i-1].nm;cm+=L_[i-1].min}
-    const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:26)*ms;if(noEnds&&(first||last))return;
-    const mk=L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
-    if(!ro){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
+    const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:26)*ms;const skipMk=noEnds&&(first||last);
+    const mk=skipMk?null:L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
+    if(!ro&&mk){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()})}
     if(!$('shLbl').checked)return;
     if(!p.loff)p.loff=p.lbl?[p.lbl[0]-p.lat,p.lbl[1]-p.lon]:[0.05,0]; // label follows its point
     p.lbl=[p.lat+p.loff[0],p.lon+p.loff[1]];
-    const auto=['','NM','MIN','TOTAL',Math.round(tot),hm(tmin),'ACTUAL',first?'-':Math.round(cn),first?'-':hm(cm),'REMAIN',last?'-':Math.round(tot-cn),last?'-':hm(tmin-cm)];
+    const auto=[rName,'NM','MIN','TOTAL',Math.round(tot),hm(tmin),'ACTUAL',first?'-':Math.round(cn),first?'-':hm(cm),'REMAIN',last?'-':Math.round(tot-cn),last?'-':hm(tmin-cm)];
     p._auto=auto;const tv=p.tv||[],cell=k=>esc(has(tv[k])?tv[k]:auto[k]);
     const tbl=p.noTbl?'':`<table style="left:${p.tbx||0}px">${[0,1,2,3].map(r=>`<tr>${[0,1,2].map(c=>`<td>${cell(r*3+c)}</td>`).join('')}</tr>`).join('')}</table>`;
     if(!first&&!last)L.polyline([[p.lat,p.lon],p.lbl],{color:'#000',weight:2}).addTo(g); // no leader line for origin/destination
