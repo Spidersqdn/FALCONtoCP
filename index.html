@@ -156,7 +156,7 @@ body{height:100dvh}
   </details>
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
-  <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
+  <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rSw" onclick="swapRoutes()" title="สลับเส้นทางหลัก ↔ สำรอง" style="flex:0 0 38px">⇄</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
   <div class="row" style="margin:-2px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setShow(false,this.checked)" style="width:auto"> SHOW เส้นทางหลัก</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setShow(true,this.checked)" style="width:auto"> SHOW เส้นทางสำรอง</label></div>
   <div class="row" style="margin:-4px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shLbl" checked onchange="draw()" style="width:auto"> SHOW PZ CPs LZ</label><label style="flex:none"><input type="checkbox" id="shBox" checked onchange="draw()" style="width:auto"> SHOW DOG LEGs</label></div>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
@@ -278,11 +278,14 @@ function syncEnds(){const a=S.alt,n=S.pts.length;if(!a||a.length<2||n<2)return;
   [[0,0],[n-1,a.length-1]].forEach(([i,j])=>{SHARE.forEach(k=>{if(S.pts[i][k]===undefined)delete a[j][k];else a[j][k]=S.pts[i][k]});
     const altP=(S.ui.route||'main')==='alt'?S.pts[i]:a[j],o=altP===a[j]?S.pts[i]:a[j],lo=o.loff||[0.05,0];
     if(!altP.loff||(altP.loff[0]===lo[0]&&altP.loff[1]===lo[1])){altP.loff=[lo[0]-0.1,lo[1]];delete altP.lbl}})}
-function routeBtns(){const r=S.ui.route||'main';$('shMain').checked=showR(false);$('shAlt').checked=showR(true);$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=S.alt?'':'none'}
+function routeBtns(){const r=S.ui.route||'main';$('shMain').checked=showR(false);$('shAlt').checked=showR(true);$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=$('rSw').style.display=S.alt?'':'none'}
 function setRoute(r){const cur=S.ui.route||'main';if(r===cur)return;
   if(!S.alt){if(S.pts.length<2)return alert('สร้างเส้นทางหลักให้มี PZ และ LZ ก่อน');const f=S.pts[0],z=S.pts[S.pts.length-1];
     S.alt=[{type:'PZ',name:f.name,lat:f.lat,lon:f.lon,alt:f.alt},{type:'LZ',name:z.name,lat:z.lat,lon:z.lon,alt:''}]}
   syncEnds();[S.pts,S.alt]=[S.alt,S.pts];S.ui.route=r;HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
+// swap roles: primary becomes alternate and vice versa (the route being edited stays the same line)
+function swapRoutes(){if(!S.alt)return;syncEnds();S.ui.route=(S.ui.route||'main')==='alt'?'main':'alt';
+  [S.ui.showMain,S.ui.showAlt]=[S.ui.showAlt,S.ui.showMain];HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 function delAlt(){if(!S.alt||!confirm('ลบเส้นทางสำรอง?'))return;if((S.ui.route||'main')==='alt'){syncEnds();S.pts=S.alt}
   S.alt=null;S.ui.route='main';HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 // SHOW toggles: isAlt=true -> alternate route
