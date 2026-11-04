@@ -258,7 +258,7 @@ function save(){S.cfg={url:$('tileUrl').value,tms:$('tms').checked,kt:$('kt').va
   try{localStorage.setItem('routeS',JSON.stringify(S))}catch(e){}
   navigator.serviceWorker?.controller?.postMessage({offline:S.ui.off});}
 // slider + numeric % box kept in sync; fn runs with this.value
-function pctIn(id,v,fn,o){o=Object.assign({min:20,max:400,step:5,unit:'%',nmin:10,nmax:1000},o);v=Math.round(v);const ok=o.nmin<0?"this.value!==''":'this.value>0';
+function pctIn(id,v,fn,o){o=Object.assign({min:20,max:400,step:1,unit:'%',nmin:10,nmax:1000},o);v=Math.round(v);const ok=o.nmin<0?"this.value!==''":'this.value>0';
   return `<div class="pct"><input id="${id}" type="range" min="${o.min}" max="${o.max}" step="${o.step}" value="${v}" oninput="$('${id}n').value=this.value;${fn}"><button class="stp" onclick="pctStep('${id}',-${o.step})" title="ลด">−</button><input id="${id}n" type="number" min="${o.nmin}" max="${o.nmax}" step="1" value="${v}" oninput="if(${ok}){$('${id}').value=this.value;${fn}}"><button class="stp" onclick="pctStep('${id}',${o.step})" title="เพิ่ม">+</button><span>${o.unit}</span></div>`}
 // whole-map settings: set the default and drop per-point overrides on both routes
 const allPts=()=>S.pts.concat(S.alt||[]);
@@ -266,7 +266,7 @@ function setGlob(k,v){S.ui[k]=v;allPts().forEach(q=>delete q[k]);draw()}
 function globSizes(){$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,"setGlob('msc',this.value/100)");
   $('bsBox').innerHTML=pctIn('bsG',(S.ui.bsc||1)*100,"setGlob('bsc',this.value/100)");
   $('lsBox').innerHTML=pctIn('lsG',(S.ui.lsc||1)*100,"setGlob('lsc',this.value/100)");
-  $('txBox').innerHTML=pctIn('txG',S.ui.tbx||0,"setGlob('tbx',+this.value)",{min:-200,max:200,step:10,unit:'px',nmin:-400,nmax:400})}
+  $('txBox').innerHTML=pctIn('txG',S.ui.tbx||0,"setGlob('tbx',+this.value)",{min:-200,max:200,step:5,unit:'px',nmin:-400,nmax:400})}
 function pctStep(id,d){const n=$(id+'n');if(!n)return;n.value=Math.min(+n.max,Math.max(+n.min,(+n.value||0)+d));n.dispatchEvent(new Event('input'))}
 function shape(t){const c=kind(t);
   if(c==='PZ')return '<svg width="26" height="24"><polygon points="13,2 24,22 2,22" fill="#F5A800" stroke="#1F4E79" stroke-width="2.5"/></svg>';
