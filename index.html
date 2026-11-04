@@ -218,7 +218,16 @@ function setBase(){ if(base)map.removeLayer(base);const u=$('tileUrl').value;
 const grp=L.layerGroup().addTo(map);
 const kind=t=>(t||'').toUpperCase().slice(0,2);
 const col=t=>COL[kind(t)]||COL.CP;
-function legCalc(a,b){const r=Math.PI/180,[p1,l1,p2,l2]=[a.lat*r,a.lon*r,b.lat*r,b.lon*r];
+// leg geometry uses the route position: a FLY BY CP is replaced by its nearest point on the line
+// between the on-route points before and after it (FLY OVER = the point itself)
+const LA=p=>p._la??p.lat,LO=p=>p._lo??p.lon;
+function eff(){const P=S.pts,n=P.length,by=(p,i)=>i>0&&i<n-1&&p.fly==='by';
+  P.forEach((p,i)=>{delete p._la;delete p._lo;if(!by(p,i))return;
+    let a=i-1;while(a>0&&by(P[a],a))a--;let b=i+1;while(b<n-1&&by(P[b],b))b++;
+    const A=P[a],B=P[b],k=Math.cos(A.lat*Math.PI/180),dx=(B.lon-A.lon)*k,dy=B.lat-A.lat,L2=dx*dx+dy*dy;
+    const t=L2?Math.max(0,Math.min(1,((p.lon-A.lon)*k*dx+(p.lat-A.lat)*dy)/L2)):0;
+    p._la=+(A.lat+dy*t).toFixed(6);p._lo=+(A.lon+(B.lon-A.lon)*t).toFixed(6)})}
+function legCalc(a,b){const r=Math.PI/180,[p1,l1,p2,l2]=[LA(a)*r,LO(a)*r,LA(b)*r,LO(b)*r];
   const d=2*Math.asin(Math.sqrt(Math.sin((p2-p1)/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin((l2-l1)/2)**2));
   const y=Math.sin(l2-l1)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(l2-l1);
   return {nm:d*3440.065,tc:(Math.atan2(y,x)/r+360)%360};}
@@ -227,7 +236,7 @@ const pad3=x=>String(Math.round(x)%360).padStart(3,'0');
 const has=v=>v!==undefined&&v!==null&&String(v).trim()!=='';
 function parseT(t){if(!has(t))return null;const m=/^(\d+):(\d{1,2})$/.exec(String(t).trim());return m?+m[1]*60+ +m[2]:isNaN(+t)?null:+t}
 // leg values: computed, then user overrides from the leg box (a.ov)
-function legs(){const kt=+$('kt').value||120;
+function legs(){eff();const kt=+$('kt').value||120;
   const L_=S.pts.slice(1).map((b,i)=>{const a=S.pts[i],c=legCalc(a,b),o=a.ov||{};
     const crs=c.tc;
     const nm=has(o.nm)&&!isNaN(+o.nm)?+o.nm:c.nm,min=parseT(o.t)??nm/kt*60;
@@ -285,14 +294,14 @@ function drawRoutes(g,ro){const ca=(S.ui.route||'main')==='alt';if(showR(!ca))wi
   return render(showR(ca)?g:L.layerGroup(),ro)}
 function draw(){fixTypes();syncEnds();snap();grp.clearLayers();const r=drawRoutes(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain();withAlt(terrain)}
 // ---- leg ALT from terrain: highest ground along the leg (AWS Terrarium DEM, z12 ~30 m), round up to 100 ft, + 500 ft ----
-const ELV={},ELP={},DEM={};const ekey=(a,b)=>[a.lat,a.lon,b.lat,b.lon].join(',');
+const ELV={},ELP={},DEM={};const ekey=(a,b)=>[LA(a),LO(a),LA(b),LO(b)].join(',');
 function autoAlt(a,b){const f=b&&ELV[ekey(a,b)];return f==null?null:String(Math.ceil(f/100)*100+500)}
 function legAlt(a,b,o){return has(o.alt)?o.alt:autoAlt(a,b)??a.alt}
 function demTile(z,x,y){const k=z+'/'+x+'/'+y;return DEM[k]||(DEM[k]=fetch('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/'+k+'.png').then(r=>{if(!r.ok)throw 0;return r.blob()}).then(createImageBitmap)
   .then(bm=>{const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.drawImage(bm,0,0);return g.getImageData(0,0,256,256).data}).catch(()=>{delete DEM[k];return null}))}
 const PROF={};
 async function legMaxFt(a,b){const z=12,n=2**z,m=Math.max(2,Math.ceil(legCalc(a,b).nm*1852/60));let mx=-1e9,ok=0;const pr=[],bin=Math.max(1,Math.round(m/200));let bm=-1e9;
-  for(let j=0;j<=m;j++){const la=a.lat+(b.lat-a.lat)*j/m,lo=a.lon+(b.lon-a.lon)*j/m,r=la*Math.PI/180;
+  for(let j=0;j<=m;j++){const la=LA(a)+(LA(b)-LA(a))*j/m,lo=LO(a)+(LO(b)-LO(a))*j/m,r=la*Math.PI/180;
     const fx=(lo+180)/360*n,fy=(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n,tx=Math.floor(fx),ty=Math.floor(fy);
     const d=await demTile(z,tx,ty);if(!d)continue;const i=(Math.floor((fy-ty)*256)*256+Math.floor((fx-tx)*256))*4;
     const e=d[i]*256+d[i+1]+d[i+2]/256-32768;mx=Math.max(mx,e);bm=Math.max(bm,e);ok=1;if(j%bin===0||j===m){pr.push(Math.max(0,bm)*3.28084);bm=-1e9}}
@@ -322,12 +331,12 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
     const dash=(a.ln||(isAlt?'dash':S.ui.line))==='dash'?'10 8':null; // per-leg style wins; else alternate = dashed, primary = global setting (solid by default)
-    L.polyline([[a.lat,a.lon],[b.lat,b.lon]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4,opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3,dashArray:dash}).addTo(g);
-    if(anf)L.marker([(a.lat+b.lat)/2,(a.lon+b.lon)/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
+    L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4,opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3,dashArray:dash}).addTo(g);
+    if(anf)L.marker([(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
     if(!$('shBox').checked)return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
-    const mid=[(a.lat+b.lat)/2,(a.lon+b.lon)/2],half=Math.hypot(a.lat-b.lat,a.lon-b.lon)/2;
-    const dl=b.lat-a.lat,dn=b.lon-a.lon,k=0.035/(Math.hypot(dl,dn)||1),def=dn>=0?[-dn*k,dl*k]:[dn*k,-dl*k]; // default: beside the leg, below it
+    const mid=[(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],half=Math.hypot(LA(a)-LA(b),LO(a)-LO(b))/2;
+    const dl=LA(b)-LA(a),dn=LO(b)-LO(a),k=0.035/(Math.hypot(dl,dn)||1),def=dn>=0?[-dn*k,dl*k]:[dn*k,-dl*k]; // default: beside the leg, below it
     if(!a.boff){a.boff=a.box?[a.box[0]-mid[0],a.box[1]-mid[1]]:def;if(Math.hypot(...a.boff)>half+0.05)a.boff=def}
     a.box=[mid[0]+a.boff[0],mid[1]+a.boff[1]];
     const bc=l.o.col||'#1F4E79';
@@ -348,6 +357,8 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
     bx.on('click',()=>editBox(i,a.box));
   });
   S.pts.forEach((p,i)=>{ if(i>0){cn+=L_[i-1].nm;cm+=L_[i-1].min}
+    if(p._la!=null){L.polyline([[p.lat,p.lon],[p._la,p._lo]],{color:anf?'#F2B43C':'#000',weight:1.5,dashArray:'4 4',interactive:false}).addTo(g);
+      L.circleMarker([p._la,p._lo],{radius:3,color:anf?'#F2B43C':'#000',weight:1.5,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(g)}
     const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:26)*ms;const skipMk=noEnds&&(first||last);
     const mk=skipMk?null:L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
     if(!ro&&mk){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
@@ -406,6 +417,7 @@ function editLbl(i){const p=S.pts[i];
   popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
    <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(lblTxt(p))}" placeholder="${esc(p.type+' '+p.name)}">
    <label>สีพื้น</label><input id="eK" type="color" value="${p.lcol||col(p.type)}">
+   ${kind(p.type)==='CP'?`<div class="seg" style="margin:6px 0 2px"><button id="fO" class="${p.fly==='by'?'':'on'}" onclick="setFly(${i},0)">FLY OVER</button><button id="fB" class="${p.fly==='by'?'on':''}" onclick="setFly(${i},1)">FLY BY</button></div>`:''}
    <label style="color:#333"><input type="checkbox" id="eH" ${p.noTbl?'checked':''} style="width:auto"> ซ่อนตาราง TOTAL/ACTUAL/REMAIN</label>
    <label>ข้อมูลตาราง (เว้นว่าง = ค่าอัตโนมัติ)</label><div class="g">${(p._auto||[]).map((v,k)=>`<input id="tv${k}" value="${esc((p.tv||[])[k])}" placeholder="${esc(v)}">`).join('')}</div>
    <label>ขนาดป้าย/ตาราง</label>${pctIn('lS',(p.lsc||S.ui.lsc||1)*100,`S.pts[${i}].lsc=this.value/100;draw()`)}
@@ -415,6 +427,7 @@ function editLbl(i){const p=S.pts[i];
    <label style="color:#333"><input type="checkbox" id="lAll" style="width:auto"> ใช้ขนาด/ตำแหน่งนี้กับทุกป้าย</label>
    <button class="pri" onclick="saveLbl(${i})">บันทึก</button><button onclick="['ltxt','lcol','noTbl','tv','lsc','msc','tbx'].forEach(k=>delete S.pts[${i}][k]);closeEd();draw()">คืนค่าเดิม</button><button style="background:#d9534f;border-color:#d9534f" onclick="delPt(${i})">🗑 ลบจุดนี้</button>`)}
 function delPt(i){const p=S.pts[i];if(!confirm('ลบจุด '+(p.type+' '+p.name).trim()+' ? (กด Undo เพื่อย้อนได้)'))return;resetBox(i-1);S.pts.splice(i,1);closeEd();draw()}
+function setFly(i,by){const p=S.pts[i];if(by)p.fly='by';else delete p.fly;$('fO').classList.toggle('on',!by);$('fB').classList.toggle('on',!!by);draw()}
 function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();if(p.ltxt===(p.type+' '+p.name).trim())p.ltxt='';p.lcol=$('eK').value;if(p.lcol.toLowerCase()===col(p.type).toLowerCase())delete p.lcol;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
   if($('lAll').checked){S.ui.lsc=p.lsc;S.ui.msc=p.msc;S.pts.forEach(q=>{delete q.lsc;delete q.msc;q.tbx=p.tbx})}closeEd();draw()}
 // ---- waypoint list (AirNavFlow style) ----
