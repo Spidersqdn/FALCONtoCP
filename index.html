@@ -696,12 +696,12 @@ async function buildSlide(){const cv=$('slC');if(!cv)return;const c=cv.getContex
   // table proportions follow SPD's template (591px wide sample scaled x1.2), centred on the map panel
   const X=822,W=708,NV='#233961',ND='#1f3864',HH=58,RB=96,RH=36,DB=5*RH+15,BB=50,TH=HH+RB+2+DB+3+BB;let y=190+(520-TH)/2;
   const bx=(x,y,w,h,f,ln)=>{c.fillStyle=f;c.fillRect(x,y,w,h);if(ln){c.lineWidth=ln[1];c.strokeStyle=ln[0];c.strokeRect(x+ln[1]/2,y+ln[1]/2,w-ln[1],h-ln[1])}};
-  c.save();c.shadowColor='rgba(0,0,0,.35)';c.shadowBlur=12;c.shadowOffsetY=3;c.fillStyle=NV;c.fillRect(X,y,W,TH);c.restore();
-  bx(X,y,W,HH,NV,['#fff',2]);c.fillStyle='#55585e';c.fillRect(X,y+HH-1,W,1.5);slTxt(c,'ENROUTE / DIST / ALT / SPEED / ETE',X+W/2,y+HH/2,24);y+=HH;
-  bx(X,y,W,RB,NV);slTxt(c,'เส้นทางบิน',X+W/2,y+RB*.3,23,{b:true});slTxt(c,v('route')||'-',X+W/2,y+RB*.72,23,{b:true});y+=RB+2;
+  c.save();c.shadowColor='rgba(0,0,0,.35)';c.shadowBlur=12;c.shadowOffsetY=3;c.fillStyle='#fff';c.fillRect(X,y,W,TH);c.restore(); // white shows through the gaps = white lines between boxes
+  bx(X,y,W,HH,NV,['#fff',2]);slTxt(c,'ENROUTE / DIST / ALT / SPEED / ETE',X+W/2,y+HH/2,24);y+=HH;
+  bx(X,y,W,RB,NV,['#fff',1.5]);slTxt(c,'เส้นทางบิน',X+W/2,y+RB*.3,23,{b:true});slTxt(c,v('route')||'-',X+W/2,y+RB*.72,23,{b:true});y+=RB+2;
   const rows=[['ระยะทาง',v('dist'),'ไมล์ทะเล'],['ความสูงบิน',v('alt'),'ฟุต'],['MSA',v('msa'),'ฟุต'],['ความเร็ว',v('speed'),'นอต'],['ใช้เวลา',v('ete'),'นาที']];
-  bx(X,y,W,DB,ND,['#000',2]);rows.forEach(([l,val,u],i)=>{const yy=y+8+i*RH+RH/2;slTxt(c,l,X+22,yy,21,{al:'l'});slTxt(c,val?val+(num(val)?' '+u:''):'-',X+W*.37,yy,21,{al:'l'})});y+=DB+3;
-  bx(X,y,W,BB,ND,['#000',2]);slTxt(c,'เส้นทางบิน : '+(v('code')||'-'),X+22,y+BB/2,21,{al:'l'});
+  bx(X,y,W,DB,ND,['#fff',1.5]);rows.forEach(([l,val,u],i)=>{const yy=y+8+i*RH+RH/2;slTxt(c,l,X+22,yy,21,{al:'l'});slTxt(c,val?val+(num(val)?' '+u:''):'-',X+W*.37,yy,21,{al:'l'})});y+=DB+3;
+  bx(X,y,W,BB,ND,['#fff',1.5]);slTxt(c,'เส้นทางบิน : '+(v('code')||'-'),X+22,y+BB/2,21,{al:'l'});
   await slMap(c,30,190,770,520)}
 function slName(){const [d,e]=($('sl_code').value||'').split('-').map(s=>s.trim().toUpperCase().replace(/[^A-Z0-9]/g,''));return `MissionOverview_${d||'DEP'}_${e||'DEST'}.png`}
 const slBlob=()=>new Promise((ok,no)=>{try{$('slC').toBlob(b=>b?ok(b):no(new Error('blob')),'image/png')}catch(e){no(e)}});
