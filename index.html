@@ -163,7 +163,7 @@ body{height:100dvh}
  <fieldset><legend>MAP</legend>
   <select id="mapSel" style="width:100%" onchange="pickMap(this.value)"></select>
   <label><input type="checkbox" id="offl" checked onchange="save()"> เก็บแผนที่ที่เปิดดูไว้ใช้ offline</label>
-  <div class="row" style="gap:6px;margin:4px 0"><button class="pri" onclick="$('lmIn').click()">📁 เปิดไฟล์แผนที่ (.pmtiles)</button><button id="lmDel" onclick="lmDel()" style="display:none;flex:0 0 auto" title="ลบแผนที่นี้ออกจากเครื่อง">ลบ</button></div>
+  <div class="row" style="gap:6px;margin:4px 0"><button class="pri" onclick="$('lmIn').click()">📁 IMPORT MAP</button><button id="lmDel" onclick="lmDel()" style="display:none;flex:0 0 auto" title="ลบแผนที่นี้ออกจากเครื่อง">ลบ</button></div>
   <input type="file" id="lmIn" accept=".pmtiles" multiple style="display:none" onchange="lmAdd(this.files);this.value=''">
   <div class="sm" id="lmInfo">ไฟล์ที่เปิดจะเก็บไว้ในเครื่อง ใช้ได้โดยไม่ต้องมีเน็ต</div>
   <div class="sm" id="cacheInfo">-</div>
