@@ -15,10 +15,10 @@
 :root{--mf:MapPSK,MapSar,Tahoma,sans-serif}
 .leaflet-container,.leaflet-container svg text,.pgn,.pg .inf{font-family:var(--mf)!important}
 *{box-sizing:border-box}body{margin:0;font:13px Tahoma,"Leelawadee UI",sans-serif;display:flex;height:100vh;background:var(--bg2);color:var(--tx)}
-#side{width:clamp(320px,25vw,560px);flex:none;overflow:auto;background:var(--bg);border-right:1px solid #000;scrollbar-color:#555 var(--bg)}
+#side{width:390px;flex:none;overflow:auto;background:var(--bg);border-right:1px solid #000;scrollbar-color:#555 var(--bg)}
 #map{flex:1;background:#e8e3c8}
 body.hide #side{display:none}
-#tog{position:fixed;top:50%;left:clamp(320px,25vw,560px);transform:translateY(-50%);z-index:1001;width:18px;height:64px;background:var(--bg);color:var(--au);border:1px solid #000;border-left:0;border-radius:0 6px 6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;box-shadow:2px 0 4px #0006}
+#tog{position:fixed;top:50%;left:390px;transform:translateY(-50%);z-index:1001;width:18px;height:64px;background:var(--bg);color:var(--au);border:1px solid #000;border-left:0;border-radius:0 6px 6px 0;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;box-shadow:2px 0 4px #0006}
 #tog:hover{background:#3a3d42}body.hide #tog{left:0}
 #sld{position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}
 #sld .sbox{background:var(--bg,#1b1d20);border:1px solid var(--ln,#3d4147);border-radius:8px;padding:12px;width:min(1100px,100%)}
@@ -101,7 +101,7 @@ fieldset>*:not(legend){clear:both}
 .mk{width:24px;height:24px;border-radius:50%;background:var(--au);border:2px solid #1b1d20;color:#1b1d20;font:bold 13px var(--mf);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0008}
 .pill{background:#1b1d20e6;color:var(--au);border:1px solid var(--au);border-radius:3px;font:bold 12px var(--mf);padding:1px 5px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
 #edp{display:none;position:fixed;top:12px;right:12px;width:270px;max-height:calc(100vh - 24px);overflow:auto;background:#fff;color:#222;border-radius:8px;box-shadow:0 4px 18px #0007;padding:10px 12px;z-index:1000;font-size:12px}
-#edp.lft{right:auto;left:calc(clamp(320px,25vw,560px) + 12px)}.edh{display:flex;justify-content:flex-end;gap:4px;margin:-4px -4px 2px}.edh button{background:#eee!important;color:#333!important;border:0;padding:2px 8px}
+#edp.lft{right:auto;left:calc(390px + 12px)}.edh{display:flex;justify-content:flex-end;gap:4px;margin:-4px -4px 2px}.edh button{background:#eee!important;color:#333!important;border:0;padding:2px 8px}
 .edh .grip{flex:1;cursor:move;user-select:none;touch-action:none;color:#888;font-size:11px;align-self:center;padding:2px 0}.edh .grip:hover{color:#333}
 #edp .pos{margin:8px 0 6px;padding:6px 8px;background:#f3f4f6;border:1px solid #d5d8dc;border-radius:6px;font-family:Consolas,monospace}#edp .pos div{display:flex;justify-content:space-between;gap:8px}#edp .pos span{color:#666;font-size:11px}#edp .pos b{color:#111;font-size:13px}
 #edp input:not([type=checkbox]):not([type=range]),#edp select{background:#eceef1;color:#111;border:1px solid #b9bec5}#edp input::placeholder{color:#6b7078}
@@ -163,6 +163,9 @@ body{height:100dvh}
  <fieldset><legend>MAP</legend>
   <select id="mapSel" style="width:100%" onchange="pickMap(this.value)"></select>
   <label><input type="checkbox" id="offl" checked onchange="save()"> เก็บแผนที่ที่เปิดดูไว้ใช้ offline</label>
+  <div class="row" style="gap:6px;margin:4px 0"><button class="pri" onclick="$('lmIn').click()">📁 IMPORT MAP</button><button id="lmDel" onclick="lmDel()" style="display:none;flex:0 0 auto" title="ลบแผนที่นี้ออกจากเครื่อง">ลบ</button></div>
+  <input type="file" id="lmIn" accept=".pmtiles" multiple style="display:none" onchange="lmAdd(this.files);this.value=''">
+  <div class="sm" id="lmInfo">ไฟล์ที่เปิดจะเก็บไว้ในเครื่อง ใช้ได้โดยไม่ต้องมีเน็ต</div>
   <div class="sm" id="cacheInfo">-</div>
   <button onclick="clearCache()">ล้าง cache แผนที่</button>
   <details><summary class="sm">ขั้นสูง: URL แผนที่เอง</summary>
@@ -184,6 +187,7 @@ body{height:100dvh}
   <div class="sm" style="margin-top:10px">รูปแบบเส้นทาง</div>
   <div class="seg"><button id="sA" onclick="setStyle('anf',1)">NAVIGATION</button><button id="sC" onclick="setStyle('cp',1)">แผนที่แผนสมบูรณ์</button></div>
   <div class="row"><span class="sm" style="flex:none" id="lineLb">เส้นทาง</span><select id="lineSt" onchange="setLine(this.value)"><option value="solid">เส้นทึบ</option><option value="dash">เส้นประ</option></select></div>
+  <div class="sm">ขนาดเส้นทางบิน</div><div id="lwBox"></div>
   <div class="sm">ขนาด Waypoint</div><div id="msBox"></div>
   <div class="sm">ขนาด DOG LEGs</div><div id="bsBox"></div>
   <div class="sm">ขนาด TABLEs</div><div id="lsBox"></div>
@@ -224,9 +228,31 @@ let S={pts:[]};try{S=JSON.parse(localStorage.getItem('routeS'))||S}catch(e){}
 S.ui=Object.assign({mode:'map',style:'anf',line:'solid',lbl:true,box:true,off:true},S.ui||{});
 const map=L.map('map',{zoomSnap:0.25}).setView([16.12,103.55],11);
 let base=null;
-function pmLayer(u){const p=new pmtiles.PMTiles(u);pmSrc={u,p,max:12};const l=pmtiles.leafletRasterLayer(p,{maxZoom:18,maxNativeZoom:12});
+// ---- local map files (.pmtiles picked from the device, kept in IndexedDB so they work offline) ----
+const LM={};let lmDB=null;
+const lmOpen=()=>lmDB||(lmDB=new Promise((ok,no)=>{const r=indexedDB.open('falcon2cp-maps',1);r.onupgradeneeded=()=>r.result.createObjectStore('maps');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}));
+const lmTx=(m,f)=>lmOpen().then(db=>new Promise((ok,no)=>{const t=db.transaction('maps',m),q=f(t.objectStore('maps'));t.oncomplete=()=>ok(q&&q.result);t.onerror=t.onabort=()=>no(t.error)}));
+const lmKey=n=>'local:'+n,lmName=u=>u.slice(6);
+function lmOpts(){const sel=$('mapSel');[...sel.options].filter(o=>o.value.startsWith('local:')).forEach(o=>o.remove());
+  const at=[...sel.options].findIndex(o=>o.value==='osm');
+  Object.keys(LM).sort().forEach(n=>sel.add(new Option('📁 '+n.replace(/\.pmtiles$/i,'')+' (ในเครื่อง)',lmKey(n)),at<0?null:sel.options[at]));
+  const u=$('tileUrl').value;if([...sel.options].some(o=>o.value===u))sel.value=u;$('lmDel').style.display=u.startsWith('local:')?'':'none'}
+async function lmInit(){try{const ks=await lmTx('readonly',s=>s.getAllKeys());for(const k of ks)LM[k]=await lmTx('readonly',s=>s.get(k))}catch(e){}
+  lmOpts();if($('tileUrl').value.startsWith('local:'))setBase()}
+async function lmAdd(files){files=[...files].filter(f=>/\.pmtiles$/i.test(f.name));if(!files.length)return alert('เลือกไฟล์ .pmtiles');
+  navigator.storage?.persist?.().catch(()=>{});let ok=true;
+  for(const f of files){LM[f.name]=f;$('lmInfo').textContent=`กำลังบันทึก ${f.name} (${(f.size/1048576).toFixed(0)} MB) ลงเครื่อง…`;
+    try{await lmTx('readwrite',s=>s.put(f,f.name))}catch(e){ok=false}}
+  $('lmInfo').textContent=ok?`บันทึกแล้ว ${files.map(f=>f.name).join(', ')} · ใช้ได้โดยไม่ต้องมีเน็ต`:'พื้นที่เครื่องไม่พอ: ใช้ได้เฉพาะรอบนี้ ปิดแอปแล้วต้องเปิดไฟล์ใหม่';
+  lmOpts();pickMap(lmKey(files[0].name));$('mapSel').value=lmKey(files[0].name)}
+async function lmDel(){const u=$('tileUrl').value;if(!u.startsWith('local:'))return;const n=lmName(u);if(!confirm(`ลบแผนที่ ${n} ออกจากเครื่อง?`))return;
+  delete LM[n];try{await lmTx('readwrite',s=>s.delete(n))}catch(e){}
+  const first=$('mapSel').options[0];pickMap(first?first.value:'osm');lmOpts();$('lmInfo').textContent=`ลบ ${n} แล้ว`}
+function pmLayer(u){const f=u.startsWith('local:')&&LM[lmName(u)];
+  if(u.startsWith('local:')&&!f){pmSrc=null;return L.layerGroup()}
+  const p=new pmtiles.PMTiles(f?new pmtiles.FileSource(f):u);pmSrc={u,p,max:12};const l=pmtiles.leafletRasterLayer(p,{maxZoom:18,maxNativeZoom:12});
   p.getHeader().then(h=>{pmSrc.max=h.maxZoom;pmSrc.min=h.minZoom;l.options.maxNativeZoom=h.maxZoom;l.options.minNativeZoom=h.minZoom;l.redraw()}).catch(()=>{});return l;}
-function pickMap(v){if(/500k/i.test(v))$('pS').value='500000';else if(/250k/i.test(v))$('pS').value='250000';if(v==='osm'){$('tileUrl').value=OSM}else if(v)$('tileUrl').value=v;setBase()}
+function pickMap(v){if(/500k/i.test(v))$('pS').value='500000';else if(/250k/i.test(v))$('pS').value='250000';if(v==='osm'){$('tileUrl').value=OSM}else if(v)$('tileUrl').value=v;setBase();$('lmDel').style.display=$('tileUrl').value.startsWith('local:')?'':'none'}
 function setBase(){ if(base)map.removeLayer(base);const u=$('tileUrl').value;
   base=u===OSM?L.tileLayer(OSM,{maxZoom:19,crossOrigin:true,attribution:'© OpenStreetMap'})
     :/\.pmtiles$/i.test(u)?pmLayer(u)
@@ -278,7 +304,8 @@ function pctIn(id,v,fn,o){o=Object.assign({min:20,max:400,step:1,unit:'%',nmin:1
 // whole-map settings: set the default and drop per-point overrides on both routes
 const allPts=()=>S.pts.concat(S.alt||[]);
 function setGlob(k,v){S.ui[k]=v;allPts().forEach(q=>delete q[k]);draw()}
-function globSizes(){$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,"setGlob('msc',this.value/100)");
+function setLw(v){S.ui.lwc=v;delete S.ui.lw;allPts().forEach(q=>delete q.lw);draw()}
+function globSizes(){$('lwBox').innerHTML=pctIn('lwG',(S.ui.lwc||1)*100,"setLw(this.value/100)");$('msBox').innerHTML=pctIn('msG',(S.ui.msc||1)*100,"setGlob('msc',this.value/100)");
   $('bsBox').innerHTML=pctIn('bsG',(S.ui.bsc||1)*100,"setGlob('bsc',this.value/100)");
   $('lsBox').innerHTML=pctIn('lsG',(S.ui.lsc||1)*100,"setGlob('lsc',this.value/100)");
   $('txBox').innerHTML=pctIn('txG',S.ui.tbx||0,"setGlob('tbx',+this.value)",{min:-200,max:200,step:5,unit:'px',nmin:-400,nmax:400})}
@@ -363,7 +390,7 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
     const dash=(a.ln||(isAlt?S.ui.lineAlt||'dash':S.ui.line||'solid'))==='dash'?'10 8':null; // per-leg style wins; else alternate = dashed, primary = global setting (solid by default)
-    L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4,opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3,dashArray:dash}).addTo(g);
+    L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4*(S.ui.lwc||1),opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
     if(anf)L.marker([(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
     if(!$('shBox').checked)return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
@@ -440,7 +467,7 @@ function editBox(i,ll){const a=S.pts[i],o=a.ov||{},l=legs()[i];
    <label>สีกรอบ</label><input id="eK" type="color" value="${o.col||'#1F4E79'}">
    ${(b=>`<label style="color:#333"><input type="checkbox" id="bH" ${b.h?'checked':''} style="width:auto"> สามเหลี่ยมหัว</label><label style="color:#333"><input type="checkbox" id="bT" ${b.t?'checked':''} style="width:auto"> สามเหลี่ยมท้าย</label>`)(Object.assign({h:true,t:true},a.bx||{}))}
    <label>เส้น leg นี้</label><select id="eLn" onchange="S.pts[${i}].ln=this.value;draw()" style="width:100%"><option value="">ตามค่าหลัก</option><option value="solid" ${a.ln==='solid'?'selected':''}>เส้นทึบ</option><option value="dash" ${a.ln==='dash'?'selected':''}>เส้นประ</option></select>
-   <label>ความหนาเส้น leg (px)</label><div class="pct"><input id="eW" type="range" min="1" max="12" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)}" oninput="$('eWn').value=this.value;S.pts[${i}].lw=+this.value;draw()"><input id="eWn" type="number" min="0.5" max="30" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)}" oninput="if(this.value>0){$('eW').value=this.value;S.pts[${i}].lw=+this.value;draw()}"><span>px</span></div>
+   <label>ความหนาเส้น leg (px)</label><div class="pct"><input id="eW" type="range" min="1" max="12" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)*(S.ui.lwc||1)}" oninput="$('eWn').value=this.value;S.pts[${i}].lw=+this.value;draw()"><input id="eWn" type="number" min="0.5" max="30" step="0.5" value="${a.lw||S.ui.lw||(S.ui.style==='anf'?4:3)*(S.ui.lwc||1)}" oninput="if(this.value>0){$('eW').value=this.value;S.pts[${i}].lw=+this.value;draw()}"><span>px</span></div>
    <label>ขนาดกล่อง</label>${pctIn('bS',(a.bsc||S.ui.bsc||1)*100,`S.pts[${i}].bsc=this.value/100;draw()`)}
    <label style="color:#333"><input type="checkbox" id="bAll" style="width:auto"> ใช้รูปแบบ/ขนาดกล่อง/ความหนาเส้นนี้กับทุก leg</label>
    <button class="pri" onclick="saveBox(${i})">บันทึก</button><button onclick="S.pts[${i}].ov={};delete S.pts[${i}].lw;closeEd();draw()">คืนค่าอัตโนมัติ</button>`)}
@@ -772,8 +799,8 @@ if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.
 if(S.pr){$('pS').value=S.pr.S;$('pP').value=S.pr.P;$('pO').value=S.pr.O;$('pOv').value=S.pr.ov;$('pM').value=S.pr.m;$('pLb').checked=S.pr.lb!==false}else if(/500k/i.test($('tileUrl').value))$('pS').value='500000';
 $('shLbl').checked=S.ui.lbl;$('shBox').checked=S.ui.box;$('offl').checked=S.ui.off;
 if(!S.pts.length&&!localStorage.getItem('routeS'))S.pts=[{type:'PZ',name:'ท่าอากาศยานร้อยเอ็ด',lat:16.1168,lon:103.7741,alt:'1100'},{type:'CP2',name:'สนาม ฮ. พล.ร.6',lat:16.105,lon:103.545,alt:'1100'},{type:'LZ',name:'สนาม ฮ. รร.สารคามพิทยาคม',lat:16.184,lon:103.3,alt:''}];
-if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^https?:/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
+if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^(https?|local):/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
 [...(window.CONFIG&&CONFIG.MAPS||[]),{name:'OpenStreetMap (offline cache)',url:'osm'}].forEach(m=>$('mapSel').add(new Option(m.name,m.url)));
 $('mapSel').add(new Option('-- URL เอง --',''));$('mapSel').value=$('tileUrl').value===OSM?'osm':$('tileUrl').value;
-globSizes();setMode(S.ui.mode);routeBtns();setStyle(S.ui.style);setBase();togTxt();if(S.pts.length)map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:innerWidth<700?[30,30]:[120,120]});else map.setView([16.1168,103.7741],9);cacheInfo();
+globSizes();setMode(S.ui.mode);routeBtns();setStyle(S.ui.style);setBase();togTxt();if(S.pts.length)map.fitBounds(S.pts.map(p=>[p.lat,p.lon]),{padding:innerWidth<700?[30,30]:[120,120]});else map.setView([16.1168,103.7741],9);cacheInfo();lmInit();
 </script></body></html>
