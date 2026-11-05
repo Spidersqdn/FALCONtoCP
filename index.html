@@ -693,13 +693,16 @@ async function buildSlide(){const cv=$('slC');if(!cv)return;const c=cv.getContex
   else{c.fillStyle='#ececec';c.fillRect(0,0,1600,900);c.fillStyle='#bfc3c7';c.fillRect(0,0,1600,110);slTxt(c,'MISSION OVERVIEW',800,57,46);
     c.fillStyle='#b8902a';c.fillRect(0,858,1600,42);slTxt(c,'S - Safety is our Priority   P - Perfect Professional Unity   D - Development and Dedication to Integrity',20,879,24,{al:'l',col:'#f3e6c0'})}
   const v=k=>($('sl_'+k).value||'').trim(),num=s=>/^\d+(\.\d+)?$/.test(s);
-  const X=822,W=708,NV='#253760',bx=(x,y,w,h,ln)=>{c.fillStyle=NV;c.fillRect(x,y,w,h);if(ln){c.lineWidth=ln[1];c.strokeStyle=ln[0];c.strokeRect(x,y,w,h)}};let y=192;
-  c.save();c.shadowColor='rgba(0,0,0,.45)';c.shadowBlur=10;c.shadowOffsetY=3;bx(X,y,W,70);c.restore();bx(X,y,W,70,['#fff',2.5]);
-  slTxt(c,'ENROUTE / DIST / ALT / SPEED / ETE',X+W/2,y+35,30);y+=70+5;
-  bx(X,y,W,125);slTxt(c,'เส้นทางบิน',X+W/2,y+38,30,{b:true});slTxt(c,v('route')||'-',X+W/2,y+88,30,{b:true});y+=125;
-  const rows=[['ระยะทาง',v('dist'),'ไมล์ทะเล'],['ความสูงบิน',v('alt'),'ฟุต'],['MSA',v('msa'),'ฟุต'],['ความเร็ว',v('speed'),'นอต'],['ใช้เวลา',v('ete'),'นาที']],RH=47;
-  bx(X,y,W,rows.length*RH+16,['#000',2]);rows.forEach(([l,val,u],i)=>{const yy=y+8+i*RH+RH/2;slTxt(c,l,X+16,yy,28,{al:'l',b:true});slTxt(c,val?val+(num(val)?' '+u:''):'-',X+W*.33,yy,28,{al:'l',b:true})});
-  y+=rows.length*RH+16+5;bx(X,y,W,64,['#000',2]);slTxt(c,'เส้นทางบิน : '+(v('code')||'-'),X+16,y+32,28,{al:'l',b:true});
+  // table proportions follow SPD's template (591px wide sample scaled x1.2), centred on the map panel
+  const X=822,W=708,NV='#233961',ND='#1f3864',HH=58,RB=96,RH=36,DB=5*RH+15,BB=50,TH=HH+RB+DB+BB,LN=(y)=>{c.fillStyle='#fff';c.fillRect(X,y-.75,W,1.5)};let y=190+(520-TH)/2;
+  const bx=(x,y,w,h,f,ln)=>{c.fillStyle=f;c.fillRect(x,y,w,h);if(ln){c.lineWidth=ln[1];c.strokeStyle=ln[0];c.strokeRect(x+ln[1]/2,y+ln[1]/2,w-ln[1],h-ln[1])}};
+  c.save();c.shadowColor='rgba(0,0,0,.35)';c.shadowBlur=12;c.shadowOffsetY=3;c.fillStyle=NV;c.fillRect(X,y,W,TH);c.restore();const y0=y;
+  bx(X,y,W,HH,NV);slTxt(c,'ENROUTE / DIST / ALT / SPEED / ETE',X+W/2,y+HH/2,24);y+=HH;
+  bx(X,y,W,RB,NV);slTxt(c,'เส้นทางบิน',X+W/2,y+RB*.3,23,{b:true});slTxt(c,v('route')||'-',X+W/2,y+RB*.72,23,{b:true});y+=RB;
+  const rows=[['ระยะทาง',v('dist'),'ไมล์ทะเล'],['ความสูงบิน',v('alt'),'ฟุต'],['MSA',v('msa'),'ฟุต'],['ความเร็ว',v('speed'),'นอต'],['ใช้เวลา',v('ete'),'นาที']];
+  bx(X,y,W,DB,ND);rows.forEach(([l,val,u],i)=>{const yy=y+8+i*RH+RH/2;slTxt(c,l,X+22,yy,21,{al:'l'});slTxt(c,val?val+(num(val)?' '+u:''):'-',X+W*.37,yy,21,{al:'l'})});y+=DB;
+  bx(X,y,W,BB,ND);slTxt(c,'เส้นทางบิน : '+(v('code')||'-'),X+22,y+BB/2,21,{al:'l'});
+  [y0+HH,y0+HH+RB,y0+HH+RB+DB].forEach(LN);c.lineWidth=2;c.strokeStyle='#fff';c.strokeRect(X+1,y0+1,W-2,TH-2); // thin white dividers + frame
   await slMap(c,30,190,770,520)}
 function slName(){const [d,e]=($('sl_code').value||'').split('-').map(s=>s.trim().toUpperCase().replace(/[^A-Z0-9]/g,''));return `MissionOverview_${d||'DEP'}_${e||'DEST'}.png`}
 const slBlob=()=>new Promise((ok,no)=>{try{$('slC').toBlob(b=>b?ok(b):no(new Error('blob')),'image/png')}catch(e){no(e)}});
