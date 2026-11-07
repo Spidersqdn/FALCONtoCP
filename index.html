@@ -98,7 +98,10 @@ fieldset>*:not(legend){clear:both}
 .btns{display:grid;grid-template-columns:1fr 1fr;gap:2px}.btns button{padding:0 2px;margin:0;font-size:11px;color:var(--cy);line-height:18px}.btns .x{color:#ff6b6b}
 .ed{display:none;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px}.ed.on{display:grid}.ed input{width:100%;padding:4px}
 .pct{display:flex;align-items:center;gap:6px}.pct input[type=range]{flex:1;min-width:0}.pct input[type=number]{width:56px;flex:none;text-align:center}.pct .stp{flex:none;width:30px;padding:2px 0;margin:0;font-size:15px;line-height:22px}
-.mk{width:24px;height:24px;border-radius:50%;background:var(--au);border:2px solid #1b1d20;color:#1b1d20;font:bold 13px var(--mf);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0008}
+.mk{width:24px;height:24px;border-radius:50%;background:#000;border:2px solid #fff;color:#fff;font:bold 13px var(--mf);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0008}
+.ring{border-radius:50%;border:3px solid #000;background:transparent;box-sizing:border-box}
+.legt{background:#fff;color:#000;border:1.5px solid #000;font:bold 12px var(--mf);padding:1px 6px;white-space:nowrap;display:inline-block}
+.wpt{background:#fff;color:#000;border:2px solid #000;font:16px var(--mf);padding:4px 12px;white-space:nowrap;display:inline-block;transform:translate(-50%,-50%)}
 .pill{background:#1b1d20e6;color:var(--au);border:1px solid var(--au);border-radius:3px;font:bold 12px var(--mf);padding:1px 5px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
 #edp{display:none;position:fixed;top:12px;right:12px;width:270px;max-height:calc(100vh - 24px);overflow:auto;background:#fff;color:#222;border-radius:8px;box-shadow:0 4px 18px #0007;padding:10px 12px;z-index:1000;font-size:12px}
 #edp.lft{right:auto;left:calc(390px + 12px)}.edh{display:flex;justify-content:flex-end;gap:4px;margin:-4px -4px 2px}.edh button{background:#eee!important;color:#333!important;border:0;padding:2px 8px}
@@ -176,8 +179,9 @@ body{height:100dvh}
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
   <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rSw" onclick="swapRoutes()" title="สลับเส้นทางหลัก ↔ สำรอง" style="flex:0 0 38px">⇄</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
-  <div class="row" style="margin:-2px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setShow(false,this.checked)" style="width:auto"> SHOW เส้นทางหลัก</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setShow(true,this.checked)" style="width:auto"> SHOW เส้นทางสำรอง</label></div>
-  <div class="row" style="margin:-4px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shLbl" checked onchange="draw()" style="width:auto"> SHOW PZ CPs LZ</label><label style="flex:none"><input type="checkbox" id="shBox" checked onchange="draw()" style="width:auto"> SHOW DOG LEGs</label></div>
+  <div class="sm" id="shHd" style="margin:-2px 0 4px"></div>
+  <div class="row" style="margin:0 0 8px;gap:8px 12px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setSh('main',this.checked)" style="width:auto"> SHOW เส้นทางหลัก</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setSh('alt',this.checked)" style="width:auto"> SHOW เส้นทางสำรอง</label></div>
+  <div class="row" style="margin:-4px 0 8px;gap:8px 12px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="shLbl" checked onchange="setSh('lbl',this.checked)" style="width:auto"> <span id="shLblT">SHOW PZ CPs LZ</span></label><label style="flex:none"><input type="checkbox" id="shBox" checked onchange="setSh('box',this.checked)" style="width:auto"> SHOW DOG LEGs</label><label style="flex:none" id="shPillL"><input type="checkbox" id="shPill" checked onchange="setSh('pill',this.checked)" style="width:auto"> SHOW LEG</label></div>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
   <div id="llBox" style="display:none"><div class="sm">Lat / Lon แบบ องศา ลิปดา.ทศนิยม (ไม่ต้องใส่ N/E) เช่น 16 07.01 / 103 46.45</div>
    <div class="row"><input id="fLat" placeholder="16 07.01" inputmode="decimal"><input id="fLon" placeholder="103 46.45" inputmode="decimal"></div></div>
@@ -295,7 +299,7 @@ function timeRule(L_){const au=L_.filter(l=>!l.man);if(!au.length)return L_;
   au.map((l,k)=>[l.min-fl[k],k]).sort((x,y)=>y[0]-x[0]).forEach(([,k])=>{if(r>0){fl[k]++;r--}});
   au.forEach((l,k)=>l.min=fl[k]);return L_}
 function save(){S.cfg={url:$('tileUrl').value,tms:$('tms').checked,kt:$('kt').value};
-  S.ui.lbl=$('shLbl').checked;S.ui.box=$('shBox').checked;S.ui.off=$('offl').checked;
+  S.ui.off=$('offl').checked;
   try{localStorage.setItem('routeS',JSON.stringify(S))}catch(e){}
   navigator.serviceWorker?.controller?.postMessage({offline:S.ui.off});}
 // slider + numeric % box kept in sync; fn runs with this.value
@@ -332,22 +336,28 @@ function syncEnds(){const a=S.alt,n=S.pts.length;if(!a||a.length<2||n<2)return;
   [[0,0],[n-1,a.length-1]].forEach(([i,j])=>{SHARE.forEach(k=>{if(S.pts[i][k]===undefined)delete a[j][k];else a[j][k]=S.pts[i][k]});
     const altP=(S.ui.route||'main')==='alt'?S.pts[i]:a[j],o=altP===a[j]?S.pts[i]:a[j],lo=o.loff||[0.05,0];
     if(!altP.loff||(altP.loff[0]===lo[0]&&altP.loff[1]===lo[1])){altP.loff=[lo[0]-0.1,lo[1]];delete altP.lbl}})}
-function routeBtns(){const r=S.ui.route||'main';$('shMain').checked=showR(false);$('shAlt').checked=showR(true);$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=$('rSw').style.display=S.alt?'':'none';lineSel()}
+function routeBtns(){const r=S.ui.route||'main';syncShow();$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=$('rSw').style.display=S.alt?'':'none';lineSel()}
 function setRoute(r){const cur=S.ui.route||'main';if(r===cur)return;
   if(!S.alt){if(S.pts.length<2)return alert('สร้างเส้นทางหลักให้มี PZ และ LZ ก่อน');const f=S.pts[0],z=S.pts[S.pts.length-1];
     S.alt=[{type:'PZ',name:f.name,lat:f.lat,lon:f.lon,alt:f.alt},{type:'LZ',name:z.name,lat:z.lat,lon:z.lon,alt:''}]}
   syncEnds();[S.pts,S.alt]=[S.alt,S.pts];S.ui.route=r;HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 // swap roles: primary becomes alternate and vice versa (the route being edited stays the same line)
 function swapRoutes(){if(!S.alt)return;syncEnds();S.ui.route=(S.ui.route||'main')==='alt'?'main':'alt';
-  [S.ui.showMain,S.ui.showAlt]=[S.ui.showAlt,S.ui.showMain];HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
+  Object.values(S.ui.sh||{}).forEach(o=>[o.main,o.alt]=[o.alt,o.main]);HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 // CLEAR: remove everything (primary + alternate routes and all their labels, tables, leg boxes)
 function clearAll(){if(!confirm('ลบทุกอย่าง (เส้นทางหลัก + สำรอง)?'))return;S.pts=[];S.alt=null;S.ui.route='main';
-  delete S.ui.showMain;delete S.ui.showAlt;HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
+  Object.values(S.ui.sh||{}).forEach(o=>{o.main=o.alt=true});HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 function delAlt(){if(!S.alt||!confirm('ลบเส้นทางสำรอง?'))return;if((S.ui.route||'main')==='alt'){syncEnds();S.pts=S.alt}
   S.alt=null;S.ui.route='main';HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 // SHOW toggles: isAlt=true -> alternate route
-const showR=isAlt=>isAlt?S.ui.showAlt!==false:S.ui.showMain!==false;
-function setShow(isAlt,v){S.ui[isAlt?'showAlt':'showMain']=v;draw()}
+// each map style (NAVIGATION / แผนที่แผนสมบูรณ์) keeps its own SHOW set
+function shSet(){const st=S.ui.style==='cp'?'cp':'anf';S.ui.sh=S.ui.sh||{};
+  if(!S.ui.sh[st])S.ui.sh[st]={main:S.ui.showMain!==false,alt:S.ui.showAlt!==false,lbl:S.ui.lbl!==false,box:S.ui.box!==false,pill:true};return S.ui.sh[st]}
+const shw=k=>shSet()[k]!==false;
+const showR=isAlt=>shw(isAlt?'alt':'main');
+function setSh(k,v){shSet()[k]=v;draw()}
+function syncShow(){const a=S.ui.style!=='cp';$('shHd').textContent='SHOW · '+(a?'NAVIGATION':'แผนที่แผนสมบูรณ์');
+  $('shMain').checked=shw('main');$('shAlt').checked=shw('alt');$('shLbl').checked=shw('lbl');$('shBox').checked=shw('box');$('shPill').checked=shw('pill');$('shPillL').style.display=a?'':'none';$('shLblT').textContent=a?'SHOW W.Pt':'SHOW PZ CPs LZ'}
 // both routes on one map: the other route first (read-only), then the edited one on top
 function drawRoutes(g,ro){const ca=(S.ui.route||'main')==='alt';if(showR(!ca))withAlt(()=>render(g,true,true));
   return render(showR(ca)?g:L.layerGroup(),ro)}
@@ -384,15 +394,28 @@ function terrain(){S.pts.slice(1).forEach((b,i)=>{const a=S.pts[i],k=ekey(a,b);i
 // run fn with the other route (S.alt) swapped in as S.pts
 function withAlt(fn){if(!S.alt||S.alt.length<2)return;[S.pts,S.alt]=[S.alt,S.pts];try{return fn()}finally{[S.pts,S.alt]=[S.alt,S.pts]}}
 // noEnds: skip PZ/LZ markers (second route drawn on the same print page); its PZ/LZ tables are still drawn
+const RING=16; // NAVIGATION waypoint ring radius (px)
 function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf',cur=S.ui.route||'main';
   const isAlt=other?cur!=='alt':cur==='alt',noEnds=other&&showR(!isAlt),rName=!S.alt?'':isAlt?'สำรอง':'หลัก'; // top-left table cell names the route
+  const CTR=S.pts.length?[S.pts.reduce((s,p)=>s+p.lat,0)/S.pts.length,S.pts.reduce((s,p)=>s+p.lon,0)/S.pts.length]:[0,0];
   const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
     const dash=(a.ln||(isAlt?S.ui.lineAlt||'dash':S.ui.line||'solid'))==='dash'?'10 8':null; // per-leg style wins; else alternate = dashed, primary = global setting (solid by default)
-    L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4*(S.ui.lwc||1),opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
-    if(anf)L.marker([(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
-    if(!$('shBox').checked)return;
+    if(anf){ // NAVIGATION: line stops at the waypoint rings; leg text box parallel to the leg, on the outer side
+      const M=g._map||map,z=M.getZoom(),pa=M.project([LA(a),LO(a)],z),pb=M.project([LA(b),LO(b)],z),d=pb.subtract(pa),len=d.distanceTo([0,0])||1,u=d.divideBy(len);
+      const ra=RING*(a.msc||S.ui.msc||1),rb=RING*(b.msc||S.ui.msc||1);
+      if(len>ra+rb)L.polyline([M.unproject(pa.add(u.multiplyBy(ra)),z),M.unproject(pb.subtract(u.multiplyBy(rb)),z)],{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
+      if(shw('pill')){const r=pad3(l.crsNum+180),rt=d.x>=0,txt=`<${rt?r:l.crsTxt}°/${(+l.nm).toFixed(1)} NM/${rt?l.crsTxt:r}°>`;
+        let ang=Math.atan2(d.y,d.x)*180/Math.PI;if(ang>90)ang-=180;if(ang<-90)ang+=180;
+        const mp=pa.add(pb).divideBy(2),c=M.project(CTR,z);let nx=-u.y,ny=u.x;
+        if(shw('box')){const dl=LA(b)-LA(a),dn=LO(b)-LO(a),bo=a.boff||(dn>=0?[-dn,dl]:[dn,-dl]);if(bo[1]*nx-bo[0]*ny>0){nx=-nx;ny=-ny}} // DOG LEG shown: text goes on the other side of the leg
+        else if((mp.x-c.x)*nx+(mp.y-c.y)*ny<0){nx=-nx;ny=-ny} // otherwise on the side away from the route centre
+        const off=16*(a.bsc||S.ui.bsc||1);
+        L.marker(M.unproject(mp.add(L.point(nx*off,ny*off)),z),{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
+          html:`<div style="transform:translate(-50%,-50%) rotate(${ang}deg) scale(${a.bsc||S.ui.bsc||1})"><span class="legt">${esc(txt)}</span></div>`})}).addTo(g)}}
+    else L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
+    if(!shw('box'))return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
     const mid=[(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],half=Math.hypot(LA(a)-LA(b),LO(a)-LO(b))/2;
     const dl=LA(b)-LA(a),dn=LO(b)-LO(a),k=0.035/(Math.hypot(dl,dn)||1),def=dn>=0?[-dn*k,dl*k]:[dn*k,-dl*k]; // default: beside the leg, below it
@@ -416,15 +439,18 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
     bx.on('click',()=>editBox(i,a.box));
   });
   S.pts.forEach((p,i)=>{ if(i>0){cn+=L_[i-1].nm;cm+=L_[i-1].min}
-    if(p._la!=null){L.polyline([[p.lat,p.lon],[p._la,p._lo]],{color:anf?'#F2B43C':'#000',weight:1.5,dashArray:'4 4',interactive:false}).addTo(g);
-      L.circleMarker([p._la,p._lo],{radius:3,color:anf?'#F2B43C':'#000',weight:1.5,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(g)}
-    const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:26)*ms;const skipMk=noEnds&&(first||last);
-    const mk=skipMk?null:L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
+    if(p._la!=null){L.polyline([[p.lat,p.lon],[p._la,p._lo]],{color:'#000',weight:1.5,dashArray:'4 4',interactive:false}).addTo(g);
+      L.circleMarker([p._la,p._lo],{radius:3,color:'#000',weight:1.5,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(g)}
+    const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?RING*2:26)*ms;const skipMk=noEnds&&(first||last);
+    const mk=skipMk?null:L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="ring" style="width:${RING*2}px;height:${RING*2}px"></div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
     if(!ro&&mk){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()})}
-    if(!$('shLbl').checked)return;
+    if(!shw('lbl'))return;
     if(!p.loff)p.loff=p.lbl?[p.lbl[0]-p.lat,p.lbl[1]-p.lon]:[0.05,0]; // label follows its point
     p.lbl=[p.lat+p.loff[0],p.lon+p.loff[1]];
+    if(anf){const lb=L.marker(p.lbl,{draggable:!ro,interactive:!ro,icon:L.divIcon({className:'lbl',iconSize:null,iconAnchor:[0,0],
+        html:`<div style="transform:scale(${p.lsc||S.ui.lsc||1});transform-origin:0 0"><span class="wpt">${esc(p.name||lblTxt(p))}</span></div>`})}).addTo(g);
+      if(!ro){lb.on('dragend',e=>{const q=e.target.getLatLng();p.loff=[q.lat-p.lat,q.lng-p.lon];draw()});lb.on('click',()=>editLbl(i))}return}
     const auto=[rName,'NM','MIN','TOTAL',Math.round(tot),hm(tmin),'ACTUAL',first?'-':Math.round(cn),first?'-':hm(cm),'REMAIN',last?'-':Math.round(tot-cn),last?'-':hm(tmin-cm)];
     p._auto=auto;const tv=p.tv||[],cell=k=>esc(has(tv[k])?tv[k]:auto[k]);
     const tbl=p.noTbl?'':`<table style="left:${p.tbx??S.ui.tbx??0}px">${[0,1,2,3].map(r=>`<tr>${[0,1,2].map(c=>`<td>${cell(r*3+c)}</td>`).join('')}</tr>`).join('')}</table>`;
@@ -574,7 +600,8 @@ function setMode(m){S.ui.mode=m;$('mOn').classList.toggle('on',m==='map');$('mLL
   map.getContainer().style.cursor=m==='map'?'crosshair':'';save()}
 function lineSel(){const a=(S.ui.route||'main')==='alt';$('lineSt').value=a?S.ui.lineAlt||'dash':S.ui.line||'solid';$('lineLb').textContent=a?'เส้นทางสำรอง':'เส้นทางหลัก'}
 function setLine(v){if((S.ui.route||'main')==='alt')S.ui.lineAlt=v;else S.ui.line=v;draw()}
-function setStyle(s,user){S.ui.style=s;if(user){S.ui.line='solid';delete S.ui.lineAlt}lineSel();$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
+function setStyle(s,user){S.ui.style=s;if(user){S.ui.line='solid';delete S.ui.lineAlt}lineSel();$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');syncShow();draw()}
+map.on('zoomend',()=>{if(S.ui.style==='anf')draw()});
 map.on('click',e=>{if($('edp').style.display==='block'){closeEd();return}if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
 $('kt').oninput=draw;
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();undo()}});
@@ -718,7 +745,7 @@ function prCfg(){const [w,h]=PAPER[$('pP').value],l=$('pO').value==='l',m=Math.m
 // zoom where 1 CSS px (1/96 in on paper) = S*0.0254/96 m on the ground at latitude lat
 const zoomFor=(lat,S)=>Math.log2(M0*Math.cos(lat*Math.PI/180)*96/(S*0.0254));
 function prPages(){const c=prCfg(),ll=[];
-  const add=a=>a.forEach((p,i)=>{ll.push([p.lat,p.lon]);if($('shLbl').checked&&p.lbl)ll.push(p.lbl);if($('shBox').checked&&p.box&&i<a.length-1)ll.push(p.box)});
+  const add=a=>a.forEach((p,i)=>{ll.push([p.lat,p.lon]);if(shw('lbl')&&p.lbl)ll.push(p.lbl);if(shw('box')&&p.box&&i<a.length-1)ll.push(p.box)});
   const ca=(S.ui.route||'main')==='alt';if(showR(ca))add(S.pts);if(S.alt&&S.alt.length>1&&showR(!ca))add(S.alt);
   if(!ll.length)return {c,pages:[],nr:0,nc:0};
   const P=ll.map(x=>MERC.project(L.latLng(x))),xs=P.map(p=>p.x),ys=P.map(p=>p.y);
@@ -800,7 +827,7 @@ addEventListener('afterprint',()=>{document.body.classList.remove('prtmode');prU
 const qm=new URLSearchParams(location.search).get('map')||(window.CONFIG&&CONFIG.MAP_URL);
 if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.cfg.tms;$('kt').value=S.cfg.kt&&S.cfg.kt!='90'?S.cfg.kt:120;if(S.cfg.osm)$('tileUrl').value=OSM}
 if(S.pr){$('pS').value=S.pr.S;$('pP').value=S.pr.P;$('pO').value=S.pr.O;$('pOv').value=S.pr.ov;$('pM').value=S.pr.m;$('pLb').checked=S.pr.lb!==false}else if(/500k/i.test($('tileUrl').value))$('pS').value='500000';
-$('shLbl').checked=S.ui.lbl;$('shBox').checked=S.ui.box;$('offl').checked=S.ui.off;
+$('offl').checked=S.ui.off;
 if(!S.pts.length&&!localStorage.getItem('routeS'))S.pts=[{type:'PZ',name:'ท่าอากาศยานร้อยเอ็ด',lat:16.1168,lon:103.7741,alt:'1100'},{type:'CP2',name:'สนาม ฮ. พล.ร.6',lat:16.105,lon:103.545,alt:'1100'},{type:'LZ',name:'สนาม ฮ. รร.สารคามพิทยาคม',lat:16.184,lon:103.3,alt:''}];
 if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^(https?|local):/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
 [...(window.CONFIG&&CONFIG.MAPS||[]),{name:'OpenStreetMap (offline cache)',url:'osm'}].forEach(m=>$('mapSel').add(new Option(m.name,m.url)));
