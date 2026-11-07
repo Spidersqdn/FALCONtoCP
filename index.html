@@ -359,8 +359,9 @@ function setSh(k,v){shSet()[k]=v;draw()}
 function syncShow(){const a=S.ui.style!=='cp';$('shHd').textContent='SHOW · '+(a?'NAVIGATION':'แผนที่แผนสมบูรณ์');
   $('shMain').checked=shw('main');$('shAlt').checked=shw('alt');$('shLbl').checked=shw('lbl');$('shBox').checked=shw('box');$('shPill').checked=shw('pill');$('shPillL').style.display=a?'':'none';$('shRnm').checked=shw('rnm');$('shRnmL').style.display=a?'none':'';$('shLblT').textContent=a?'SHOW W.Pt':'SHOW PZ CPs LZ'}
 // both routes on one map: the other route first (read-only), then the edited one on top
+const lkey=(a,b)=>[wkey(a),wkey(b)].sort().join('|'); // leg A-B == leg B-A
 const wkey=p=>(+p.lat).toFixed(4)+','+(+p.lon).toFixed(4); // NAVIGATION: same position = same waypoint, drawn once
-function drawRoutes(g,ro){const ca=(S.ui.route||'main')==='alt';g._cur=new Set(showR(ca)?S.pts.map(wkey):[]);if(showR(!ca))withAlt(()=>render(g,ro,true)); // other route stays draggable on screen
+function drawRoutes(g,ro){const ca=(S.ui.route||'main')==='alt';g._cur=new Set(showR(ca)?S.pts.map(wkey):[]);g._curL=new Set(showR(ca)?S.pts.slice(1).map((b,i)=>lkey(S.pts[i],b)):[]);if(showR(!ca))withAlt(()=>render(g,ro,true)); // other route stays draggable on screen
   return render(showR(ca)?g:L.layerGroup(),ro)}
 function draw(){fixTypes();syncEnds();snap();grp.clearLayers();const r=drawRoutes(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain();withAlt(terrain)}
 // ---- leg ALT from terrain: highest ground along the leg (AWS Terrarium DEM, z12 ~30 m), round up to 100 ft, + 500 ft ----
@@ -400,15 +401,16 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
   const isAlt=other?cur!=='alt':cur==='alt',noEnds=other&&showR(!isAlt),rName=!S.alt||!shw('rnm')?'':isAlt?'สำรอง':'หลัก';
   const ed=fn=>()=>{if(other)setRoute(isAlt?'alt':'main');fn()}; // editing an item of the other route switches to that route first // top-left table cell names the route
   const CTR=S.pts.length?[S.pts.reduce((s,p)=>s+p.lat,0)/S.pts.length,S.pts.reduce((s,p)=>s+p.lon,0)/S.pts.length]:[0,0];
-  const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0),seen=new Set();let cn=0,cm=0;
+  const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0),seen=new Set(),seenL=new Set();let cn=0,cm=0;
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];if(anf&&wkey(a)===wkey(b))return; // repeated waypoint: no zero-length leg / box
     const dash=(a.ln||(isAlt?S.ui.lineAlt||'dash':S.ui.line||'solid'))==='dash'?'10 8':null; // per-leg style wins; else alternate = dashed, primary = global setting (solid by default)
+    const dupL=anf&&(()=>{const k=lkey(a,b);if(seenL.has(k)||(other&&g._curL&&g._curL.has(k)))return true;seenL.add(k);return false})(); // NAVIGATION: same leg in both routes -> LEG / DOG LEG box once (current route wins)
     if(anf){ // NAVIGATION: line stops at the waypoint rings; leg text box parallel to the leg, on the outer side
       const M=g._map||map,z=M.getZoom(),pa=M.project([LA(a),LO(a)],z),pb=M.project([LA(b),LO(b)],z),d=pb.subtract(pa),len=d.distanceTo([0,0])||1,u=d.divideBy(len);
       const ra=RING*(a.msc||S.ui.msc||1),rb=RING*(b.msc||S.ui.msc||1);
       if(len>ra+rb)L.polyline([M.unproject(pa.add(u.multiplyBy(ra)),z),M.unproject(pb.subtract(u.multiplyBy(rb)),z)],{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
-      if(shw('pill')){const r=pad3(l.crsNum+180),rt=d.x>=0,txt=`<${rt?r:l.crsTxt}°/${(+l.nm).toFixed(1)} NM/${rt?l.crsTxt:r}°>`;
+      if(shw('pill')&&!dupL){const r=pad3(l.crsNum+180),rt=d.x>=0,txt=`<${rt?r:l.crsTxt}°/${(+l.nm).toFixed(1)} NM/${rt?l.crsTxt:r}°>`;
         let ang=Math.atan2(d.y,d.x)*180/Math.PI;if(ang>90)ang-=180;if(ang<-90)ang+=180;
         const mp=pa.add(pb).divideBy(2),c=M.project(CTR,z);let nx=-u.y,ny=u.x;
         if(shw('box')){const dl=LA(b)-LA(a),dn=LO(b)-LO(a),bo=a.boff||(dn>=0?[-dn,dl]:[dn,-dl]);if(bo[1]*nx-bo[0]*ny>0){nx=-nx;ny=-ny}} // DOG LEG shown: text goes on the other side of the leg
@@ -419,7 +421,7 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
           html:`<div style="transform:translate(-50%,-50%) rotate(${ang}deg) scale(${a.bsc||S.ui.bsc||1})"><span class="legt" style="cursor:${ro?'default':'move'}">${esc(txt)}</span></div>`})}).addTo(g);
         if(!ro)pm.on('dragend',e=>{const q=e.target.getLatLng();a.poff=[q.lat-gm[0],q.lng-gm[1]];draw()})}}
     else L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
-    if(!shw('box'))return;
+    if(!shw('box')||dupL)return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
     const mid=[(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],half=Math.hypot(LA(a)-LA(b),LO(a)-LO(b))/2;
     const dl=LA(b)-LA(a),dn=LO(b)-LO(a),k=0.035/(Math.hypot(dl,dn)||1),def=dn>=0?[-dn*k,dl*k]:[dn*k,-dl*k]; // default: beside the leg, below it
