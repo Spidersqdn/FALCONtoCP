@@ -503,8 +503,8 @@ function saveBox(i){const a=S.pts[i],bx={h:$('bH').checked,t:$('bT').checked};if
 function editLbl(i){const p=S.pts[i];
   popForm(p.lbl,`<b>ป้ายจุด ${i+1}</b>
    <label>ข้อความป้าย (ว่าง = Type + ชื่อ)</label><input id="eL" value="${esc(lblTxt(p))}" placeholder="${esc(p.type+' '+p.name)}">
-   <label>ชนิดจุด</label><div class="seg" style="margin:0">${(()=>{const c=kind(p.type)==='CP'?((S.ui.route||'main')==='main'?'M':'A'):kind(p.type);
-     return [['PZ','PZ'],['LZ','LZ'],['M','CP หลัก'],['A','CP สำรอง']].map(([k,t])=>`<button class="${c===k?'on':''}" onclick="setKind(${i},'${k}')">${t}</button>`).join('')})()}</div>
+   <label>ชนิดจุด</label><div class="seg" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">${(()=>{const c=kind(p.type)==='CP'?(inOther(p)>=0?'B':(S.ui.route||'main')==='main'?'M':'A'):kind(p.type);
+     return [['PZ','PZ'],['LZ','LZ'],['M','CP หลัก'],['A','CP สำรอง'],['B','CP หลักและสำรอง']].map(([k,t])=>`<button class="${c===k?'on':''}"${k==='B'?' style="grid-column:1/-1"':''} onclick="setKind(${i},'${k}')">${t}</button>`).join('')})()}</div>
    <label>สีพื้น</label><input id="eK" type="color" value="${p.lcol||col(p.type)}">
    ${kind(p.type)==='CP'?`<div class="seg" style="margin:6px 0 2px"><button id="fO" class="${p.fly==='by'?'':'on'}" onclick="setFly(${i},0)">FLY OVER</button><button id="fB" class="${p.fly==='by'?'on':''}" onclick="setFly(${i},1)">FLY BY</button></div>`:''}
    <label style="color:#333"><input type="checkbox" id="eH" ${p.noTbl?'checked':''} style="width:auto"> ซ่อนตาราง TOTAL/ACTUAL/REMAIN</label>
@@ -521,12 +521,23 @@ function delPt(i){const p=S.pts[i];if(!confirm('ลบจุด '+(p.type+' '+p.
 function setKind(i,k){const P=S.pts,p=P[i],onMain=(S.ui.route||'main')==='main';
   if(k==='PZ'||k==='LZ'){P.splice(i,1);const o=k==='PZ'?P[0]:P[P.length-1];if(o&&kind(o.type)===k)o.tf='CP';
     p.tf=k;delete p.fly;if(k==='PZ')P.unshift(p);else P.push(p);closeEd();draw();return}
-  if((k==='A')===!onMain){p.tf='CP';draw();editLbl(i);return}
-  if(!S.alt){const f=P[0],z=P[P.length-1];if(P.length<2||kind(f.type)!=='PZ'||kind(z.type)!=='LZ')return alert('เลือก PZ และ LZ ก่อน');
-    S.alt=[{type:'PZ',name:f.name,lat:f.lat,lon:f.lon},{type:'LZ',name:z.name,lat:z.lat,lon:z.lon}]}
-  P.splice(i,1);p.tf='CP';const T=S.alt,n=T.length,end=n&&kind(T[n-1].type)==='LZ'?n-1:n;let at=end;
-  if(p.ord!=null)for(let j=1;j<end;j++)if(T[j].ord!=null&&T[j].ord>p.ord){at=j;break}
+  const oi=inOther(p);
+  if(k==='B'){if(oi>=0)return;if(!ensAlt())return;p.tf='CP';const T=S.alt,q={type:'CP',tf:'CP',name:p.name,lat:p.lat,lon:p.lon};if(p.ord!=null)q.ord=p.ord;if(p.fly)q.fly=p.fly;
+    T.splice(insAt(T,q),0,q);closeEd();draw();routeBtns();editLbl(i);return}
+  if((k==='A')===!onMain){p.tf='CP';if(oi>=0)S.alt.splice(oi,1);draw();editLbl(i);return} // CP of this route only: drop its copy from the other route
+  if(oi>=0){resetBox(i-1);P.splice(i,1);closeEd();draw();return} // shared CP -> keep only the copy on the other route
+  if(!ensAlt())return;
+  P.splice(i,1);p.tf='CP';const T=S.alt,at=insAt(T,p);
   T.splice(at,0,p);HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
+// CP shared by both routes: same position in the other route (S.alt holds the route not being edited)
+function inOther(p){const T=S.alt;if(!T)return -1;const k=wkey(p);for(let j=1;j<T.length-1;j++)if(wkey(T[j])===k)return j;return -1}
+function ensAlt(){const P=S.pts;if(S.alt)return true;const f=P[0],z=P[P.length-1];if(P.length<2||kind(f.type)!=='PZ'||kind(z.type)!=='LZ'){alert('เลือก PZ และ LZ ก่อน');return false}
+  S.alt=[{type:'PZ',name:f.name,lat:f.lat,lon:f.lon},{type:'LZ',name:z.name,lat:z.lat,lon:z.lon}];return true}
+// where to put a CP in route T: by import order if known, else on the leg that adds the least distance
+function insAt(T,p){const n=T.length,end=n&&kind(T[n-1].type)==='LZ'?n-1:n;
+  if(p.ord!=null){for(let j=1;j<end;j++)if(T[j].ord!=null&&T[j].ord>p.ord)return j;}
+  let best=end,bd=1/0;const d=(a,b)=>Math.hypot(a.lat-b.lat,(a.lon-b.lon)*Math.cos(a.lat*Math.PI/180));
+  for(let j=1;j<n;j++){const x=d(T[j-1],p)+d(p,T[j])-d(T[j-1],T[j]);if(x<bd){bd=x;best=j}}return best}
 function setFly(i,by){const p=S.pts[i];if(by)p.fly='by';else delete p.fly;$('fO').classList.toggle('on',!by);$('fB').classList.toggle('on',!!by);draw()}
 function saveLbl(i){const p=S.pts[i];p.ltxt=$('eL').value.trim();if(p.ltxt===(p.type+' '+p.name).trim())p.ltxt='';p.lcol=$('eK').value;if(p.lcol.toLowerCase()===col(p.type).toLowerCase())delete p.lcol;p.noTbl=$('eH').checked;p.tv=[...Array(12)].map((_,k)=>$('tv'+k)?.value.trim()||'');
   if($('lAll').checked){S.ui.lsc=p.lsc;S.ui.msc=p.msc;S.pts.forEach(q=>{delete q.lsc;delete q.msc;q.tbx=p.tbx})}closeEd();draw()}
