@@ -176,8 +176,9 @@ body{height:100dvh}
  </fieldset>
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
   <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rSw" onclick="swapRoutes()" title="สลับเส้นทางหลัก ↔ สำรอง" style="flex:0 0 38px">⇄</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
-  <div class="row" style="margin:-2px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setShow(false,this.checked)" style="width:auto"> SHOW เส้นทางหลัก</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setShow(true,this.checked)" style="width:auto"> SHOW เส้นทางสำรอง</label></div>
-  <div class="row" style="margin:-4px 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shLbl" checked onchange="draw()" style="width:auto"> SHOW PZ CPs LZ</label><label style="flex:none"><input type="checkbox" id="shBox" checked onchange="draw()" style="width:auto"> SHOW DOG LEGs</label></div>
+  <div class="sm" id="shHd" style="margin:-2px 0 4px"></div>
+  <div class="row" style="margin:0 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setSh('main',this.checked)" style="width:auto"> SHOW เส้นทางหลัก</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setSh('alt',this.checked)" style="width:auto"> SHOW เส้นทางสำรอง</label></div>
+  <div class="row" style="margin:-4px 0 8px;gap:8px 12px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="shLbl" checked onchange="setSh('lbl',this.checked)" style="width:auto"> SHOW PZ CPs LZ</label><label style="flex:none"><input type="checkbox" id="shBox" checked onchange="setSh('box',this.checked)" style="width:auto"> SHOW DOG LEGs</label><label style="flex:none" id="shPillL"><input type="checkbox" id="shPill" checked onchange="setSh('pill',this.checked)" style="width:auto"> SHOW ° / NM</label></div>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
   <div id="llBox" style="display:none"><div class="sm">Lat / Lon แบบ องศา ลิปดา.ทศนิยม (ไม่ต้องใส่ N/E) เช่น 16 07.01 / 103 46.45</div>
    <div class="row"><input id="fLat" placeholder="16 07.01" inputmode="decimal"><input id="fLon" placeholder="103 46.45" inputmode="decimal"></div></div>
@@ -295,7 +296,7 @@ function timeRule(L_){const au=L_.filter(l=>!l.man);if(!au.length)return L_;
   au.map((l,k)=>[l.min-fl[k],k]).sort((x,y)=>y[0]-x[0]).forEach(([,k])=>{if(r>0){fl[k]++;r--}});
   au.forEach((l,k)=>l.min=fl[k]);return L_}
 function save(){S.cfg={url:$('tileUrl').value,tms:$('tms').checked,kt:$('kt').value};
-  S.ui.lbl=$('shLbl').checked;S.ui.box=$('shBox').checked;S.ui.off=$('offl').checked;
+  S.ui.off=$('offl').checked;
   try{localStorage.setItem('routeS',JSON.stringify(S))}catch(e){}
   navigator.serviceWorker?.controller?.postMessage({offline:S.ui.off});}
 // slider + numeric % box kept in sync; fn runs with this.value
@@ -332,22 +333,28 @@ function syncEnds(){const a=S.alt,n=S.pts.length;if(!a||a.length<2||n<2)return;
   [[0,0],[n-1,a.length-1]].forEach(([i,j])=>{SHARE.forEach(k=>{if(S.pts[i][k]===undefined)delete a[j][k];else a[j][k]=S.pts[i][k]});
     const altP=(S.ui.route||'main')==='alt'?S.pts[i]:a[j],o=altP===a[j]?S.pts[i]:a[j],lo=o.loff||[0.05,0];
     if(!altP.loff||(altP.loff[0]===lo[0]&&altP.loff[1]===lo[1])){altP.loff=[lo[0]-0.1,lo[1]];delete altP.lbl}})}
-function routeBtns(){const r=S.ui.route||'main';$('shMain').checked=showR(false);$('shAlt').checked=showR(true);$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=$('rSw').style.display=S.alt?'':'none';lineSel()}
+function routeBtns(){const r=S.ui.route||'main';syncShow();$('rMain').classList.toggle('on',r==='main');$('rAlt').classList.toggle('on',r==='alt');$('rDel').style.display=$('rSw').style.display=S.alt?'':'none';lineSel()}
 function setRoute(r){const cur=S.ui.route||'main';if(r===cur)return;
   if(!S.alt){if(S.pts.length<2)return alert('สร้างเส้นทางหลักให้มี PZ และ LZ ก่อน');const f=S.pts[0],z=S.pts[S.pts.length-1];
     S.alt=[{type:'PZ',name:f.name,lat:f.lat,lon:f.lon,alt:f.alt},{type:'LZ',name:z.name,lat:z.lat,lon:z.lon,alt:''}]}
   syncEnds();[S.pts,S.alt]=[S.alt,S.pts];S.ui.route=r;HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 // swap roles: primary becomes alternate and vice versa (the route being edited stays the same line)
 function swapRoutes(){if(!S.alt)return;syncEnds();S.ui.route=(S.ui.route||'main')==='alt'?'main':'alt';
-  [S.ui.showMain,S.ui.showAlt]=[S.ui.showAlt,S.ui.showMain];HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
+  Object.values(S.ui.sh||{}).forEach(o=>[o.main,o.alt]=[o.alt,o.main]);HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 // CLEAR: remove everything (primary + alternate routes and all their labels, tables, leg boxes)
 function clearAll(){if(!confirm('ลบทุกอย่าง (เส้นทางหลัก + สำรอง)?'))return;S.pts=[];S.alt=null;S.ui.route='main';
-  delete S.ui.showMain;delete S.ui.showAlt;HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
+  Object.values(S.ui.sh||{}).forEach(o=>{o.main=o.alt=true});HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 function delAlt(){if(!S.alt||!confirm('ลบเส้นทางสำรอง?'))return;if((S.ui.route||'main')==='alt'){syncEnds();S.pts=S.alt}
   S.alt=null;S.ui.route='main';HIST.length=0;lastSnap=null;closeEd();draw();routeBtns()}
 // SHOW toggles: isAlt=true -> alternate route
-const showR=isAlt=>isAlt?S.ui.showAlt!==false:S.ui.showMain!==false;
-function setShow(isAlt,v){S.ui[isAlt?'showAlt':'showMain']=v;draw()}
+// each map style (NAVIGATION / แผนที่แผนสมบูรณ์) keeps its own SHOW set
+function shSet(){const st=S.ui.style==='cp'?'cp':'anf';S.ui.sh=S.ui.sh||{};
+  if(!S.ui.sh[st])S.ui.sh[st]={main:S.ui.showMain!==false,alt:S.ui.showAlt!==false,lbl:S.ui.lbl!==false,box:S.ui.box!==false,pill:true};return S.ui.sh[st]}
+const shw=k=>shSet()[k]!==false;
+const showR=isAlt=>shw(isAlt?'alt':'main');
+function setSh(k,v){shSet()[k]=v;draw()}
+function syncShow(){const a=S.ui.style!=='cp';$('shHd').textContent='SHOW · '+(a?'NAVIGATION':'แผนที่แผนสมบูรณ์');
+  $('shMain').checked=shw('main');$('shAlt').checked=shw('alt');$('shLbl').checked=shw('lbl');$('shBox').checked=shw('box');$('shPill').checked=shw('pill');$('shPillL').style.display=a?'':'none'}
 // both routes on one map: the other route first (read-only), then the edited one on top
 function drawRoutes(g,ro){const ca=(S.ui.route||'main')==='alt';if(showR(!ca))withAlt(()=>render(g,true,true));
   return render(showR(ca)?g:L.layerGroup(),ro)}
@@ -391,8 +398,8 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
     const dash=(a.ln||(isAlt?S.ui.lineAlt||'dash':S.ui.line||'solid'))==='dash'?'10 8':null; // per-leg style wins; else alternate = dashed, primary = global setting (solid by default)
     L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4*(S.ui.lwc||1),opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
-    if(anf)L.marker([(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
-    if(!$('shBox').checked)return;
+    if(anf&&shw('pill'))L.marker([(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
+    if(!shw('box'))return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
     const mid=[(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],half=Math.hypot(LA(a)-LA(b),LO(a)-LO(b))/2;
     const dl=LA(b)-LA(a),dn=LO(b)-LO(a),k=0.035/(Math.hypot(dl,dn)||1),def=dn>=0?[-dn*k,dl*k]:[dn*k,-dl*k]; // default: beside the leg, below it
@@ -422,7 +429,7 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
     const mk=skipMk?null:L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
     if(!ro&&mk){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()})}
-    if(!$('shLbl').checked)return;
+    if(!shw('lbl'))return;
     if(!p.loff)p.loff=p.lbl?[p.lbl[0]-p.lat,p.lbl[1]-p.lon]:[0.05,0]; // label follows its point
     p.lbl=[p.lat+p.loff[0],p.lon+p.loff[1]];
     const auto=[rName,'NM','MIN','TOTAL',Math.round(tot),hm(tmin),'ACTUAL',first?'-':Math.round(cn),first?'-':hm(cm),'REMAIN',last?'-':Math.round(tot-cn),last?'-':hm(tmin-cm)];
@@ -574,7 +581,7 @@ function setMode(m){S.ui.mode=m;$('mOn').classList.toggle('on',m==='map');$('mLL
   map.getContainer().style.cursor=m==='map'?'crosshair':'';save()}
 function lineSel(){const a=(S.ui.route||'main')==='alt';$('lineSt').value=a?S.ui.lineAlt||'dash':S.ui.line||'solid';$('lineLb').textContent=a?'เส้นทางสำรอง':'เส้นทางหลัก'}
 function setLine(v){if((S.ui.route||'main')==='alt')S.ui.lineAlt=v;else S.ui.line=v;draw()}
-function setStyle(s,user){S.ui.style=s;if(user){S.ui.line='solid';delete S.ui.lineAlt}lineSel();$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');draw()}
+function setStyle(s,user){S.ui.style=s;if(user){S.ui.line='solid';delete S.ui.lineAlt}lineSel();$('sA').classList.toggle('on',s==='anf');$('sC').classList.toggle('on',s==='cp');syncShow();draw()}
 map.on('click',e=>{if($('edp').style.display==='block'){closeEd();return}if(S.ui.mode==='map')addPt(e.latlng.lat,e.latlng.lng)});
 $('kt').oninput=draw;
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();undo()}});
@@ -718,7 +725,7 @@ function prCfg(){const [w,h]=PAPER[$('pP').value],l=$('pO').value==='l',m=Math.m
 // zoom where 1 CSS px (1/96 in on paper) = S*0.0254/96 m on the ground at latitude lat
 const zoomFor=(lat,S)=>Math.log2(M0*Math.cos(lat*Math.PI/180)*96/(S*0.0254));
 function prPages(){const c=prCfg(),ll=[];
-  const add=a=>a.forEach((p,i)=>{ll.push([p.lat,p.lon]);if($('shLbl').checked&&p.lbl)ll.push(p.lbl);if($('shBox').checked&&p.box&&i<a.length-1)ll.push(p.box)});
+  const add=a=>a.forEach((p,i)=>{ll.push([p.lat,p.lon]);if(shw('lbl')&&p.lbl)ll.push(p.lbl);if(shw('box')&&p.box&&i<a.length-1)ll.push(p.box)});
   const ca=(S.ui.route||'main')==='alt';if(showR(ca))add(S.pts);if(S.alt&&S.alt.length>1&&showR(!ca))add(S.alt);
   if(!ll.length)return {c,pages:[],nr:0,nc:0};
   const P=ll.map(x=>MERC.project(L.latLng(x))),xs=P.map(p=>p.x),ys=P.map(p=>p.y);
@@ -800,7 +807,7 @@ addEventListener('afterprint',()=>{document.body.classList.remove('prtmode');prU
 const qm=new URLSearchParams(location.search).get('map')||(window.CONFIG&&CONFIG.MAP_URL);
 if(S.cfg){$('tileUrl').value=S.cfg.url||$('tileUrl').value;$('tms').checked=!!S.cfg.tms;$('kt').value=S.cfg.kt&&S.cfg.kt!='90'?S.cfg.kt:120;if(S.cfg.osm)$('tileUrl').value=OSM}
 if(S.pr){$('pS').value=S.pr.S;$('pP').value=S.pr.P;$('pO').value=S.pr.O;$('pOv').value=S.pr.ov;$('pM').value=S.pr.m;$('pLb').checked=S.pr.lb!==false}else if(/500k/i.test($('tileUrl').value))$('pS').value='500000';
-$('shLbl').checked=S.ui.lbl;$('shBox').checked=S.ui.box;$('offl').checked=S.ui.off;
+$('offl').checked=S.ui.off;
 if(!S.pts.length&&!localStorage.getItem('routeS'))S.pts=[{type:'PZ',name:'ท่าอากาศยานร้อยเอ็ด',lat:16.1168,lon:103.7741,alt:'1100'},{type:'CP2',name:'สนาม ฮ. พล.ร.6',lat:16.105,lon:103.545,alt:'1100'},{type:'LZ',name:'สนาม ฮ. รร.สารคามพิทยาคม',lat:16.184,lon:103.3,alt:''}];
 if(new URLSearchParams(location.search).get('map')||!S.cfg||!/^(https?|local):/.test($('tileUrl').value))$('tileUrl').value=qm||$('tileUrl').value;
 [...(window.CONFIG&&CONFIG.MAPS||[]),{name:'OpenStreetMap (offline cache)',url:'osm'}].forEach(m=>$('mapSel').add(new Option(m.name,m.url)));
