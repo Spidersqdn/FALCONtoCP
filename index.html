@@ -359,7 +359,8 @@ function setSh(k,v){shSet()[k]=v;draw()}
 function syncShow(){const a=S.ui.style!=='cp';$('shHd').textContent='SHOW · '+(a?'NAVIGATION':'แผนที่แผนสมบูรณ์');
   $('shMain').checked=shw('main');$('shAlt').checked=shw('alt');$('shLbl').checked=shw('lbl');$('shBox').checked=shw('box');$('shPill').checked=shw('pill');$('shPillL').style.display=a?'':'none';$('shLblT').textContent=a?'SHOW W.Pt':'SHOW PZ CPs LZ'}
 // both routes on one map: the other route first (read-only), then the edited one on top
-function drawRoutes(g,ro){const ca=(S.ui.route||'main')==='alt';if(showR(!ca))withAlt(()=>render(g,true,true));
+const wkey=p=>(+p.lat).toFixed(4)+','+(+p.lon).toFixed(4); // NAVIGATION: same position = same waypoint, drawn once
+function drawRoutes(g,ro){const ca=(S.ui.route||'main')==='alt';g._cur=new Set(showR(ca)?S.pts.map(wkey):[]);if(showR(!ca))withAlt(()=>render(g,true,true));
   return render(showR(ca)?g:L.layerGroup(),ro)}
 function draw(){fixTypes();syncEnds();snap();grp.clearLayers();const r=drawRoutes(grp,false);list(r.L_,r.tot,r.tmin);save();prUpd();terrain();withAlt(terrain)}
 // ---- leg ALT from terrain: highest ground along the leg (AWS Terrarium DEM, z12 ~30 m), round up to 100 ft, + 500 ft ----
@@ -398,9 +399,9 @@ const RING=16; // NAVIGATION waypoint ring radius (px)
 function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf',cur=S.ui.route||'main';
   const isAlt=other?cur!=='alt':cur==='alt',noEnds=other&&showR(!isAlt),rName=!S.alt?'':isAlt?'สำรอง':'หลัก'; // top-left table cell names the route
   const CTR=S.pts.length?[S.pts.reduce((s,p)=>s+p.lat,0)/S.pts.length,S.pts.reduce((s,p)=>s+p.lon,0)/S.pts.length]:[0,0];
-  const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0);let cn=0,cm=0;
+  const tot=L_.reduce((s,l)=>s+l.nm,0),tmin=L_.reduce((s,l)=>s+l.min,0),seen=new Set();let cn=0,cm=0;
   // legs first so markers sit on top
-  L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
+  L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];if(anf&&wkey(a)===wkey(b))return; // repeated waypoint: no zero-length leg / box
     const dash=(a.ln||(isAlt?S.ui.lineAlt||'dash':S.ui.line||'solid'))==='dash'?'10 8':null; // per-leg style wins; else alternate = dashed, primary = global setting (solid by default)
     if(anf){ // NAVIGATION: line stops at the waypoint rings; leg text box parallel to the leg, on the outer side
       const M=g._map||map,z=M.getZoom(),pa=M.project([LA(a),LO(a)],z),pb=M.project([LA(b),LO(b)],z),d=pb.subtract(pa),len=d.distanceTo([0,0])||1,u=d.divideBy(len);
@@ -442,6 +443,7 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
     if(p._la!=null){L.polyline([[p.lat,p.lon],[p._la,p._lo]],{color:'#000',weight:1.5,dashArray:'4 4',interactive:false}).addTo(g);
       L.circleMarker([p._la,p._lo],{radius:3,color:'#000',weight:1.5,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(g)}
     const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?RING*2:26)*ms;const skipMk=noEnds&&(first||last);
+    if(anf){const k=wkey(p);if(seen.has(k)||(other&&g._cur&&g._cur.has(k)))return;seen.add(k)} // duplicate waypoint: ring + W.Pt shown once (current route wins)
     const mk=skipMk?null:L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="ring" style="width:${RING*2}px;height:${RING*2}px"></div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
     if(!ro&&mk){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
     mk.on('dragend',e=>{const q=e.target.getLatLng();p.lat=+q.lat.toFixed(6);p.lon=+q.lng.toFixed(6);draw()})}
