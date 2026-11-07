@@ -413,8 +413,10 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
         if(shw('box')){const dl=LA(b)-LA(a),dn=LO(b)-LO(a),bo=a.boff||(dn>=0?[-dn,dl]:[dn,-dl]);if(bo[1]*nx-bo[0]*ny>0){nx=-nx;ny=-ny}} // DOG LEG shown: text goes on the other side of the leg
         else if((mp.x-c.x)*nx+(mp.y-c.y)*ny<0){nx=-nx;ny=-ny} // otherwise on the side away from the route centre
         const off=16*(a.bsc||S.ui.bsc||1);
-        L.marker(M.unproject(mp.add(L.point(nx*off,ny*off)),z),{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
-          html:`<div style="transform:translate(-50%,-50%) rotate(${ang}deg) scale(${a.bsc||S.ui.bsc||1})"><span class="legt">${esc(txt)}</span></div>`})}).addTo(g)}}
+        const gm=[(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],pos=a.poff?[gm[0]+a.poff[0],gm[1]+a.poff[1]]:M.unproject(mp.add(L.point(nx*off,ny*off)),z); // dragged position is kept as an offset from the leg midpoint
+        const pm=L.marker(pos,{draggable:!ro,interactive:!ro,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,iconAnchor:[0,0],
+          html:`<div style="transform:translate(-50%,-50%) rotate(${ang}deg) scale(${a.bsc||S.ui.bsc||1})"><span class="legt" style="cursor:${ro?'default':'move'}">${esc(txt)}</span></div>`})}).addTo(g);
+        if(!ro)pm.on('dragend',e=>{const q=e.target.getLatLng();a.poff=[q.lat-gm[0],q.lng-gm[1]];draw()})}}
     else L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
     if(!shw('box'))return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
@@ -555,14 +557,14 @@ function list(L_,tot,tmin){
   profile(L_);$('stD').textContent=tot.toFixed(1)+' NM';$('stT').textContent=hm(tmin);$('stN').textContent=S.pts.length;}
 // reverse: leg data (box pos, overrides, alt, box style) belongs to the leg's start point, so shift it to the new start
 function revPts(){const n=S.pts.length;if(n<2)return;
-  const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx,bsc:p.bsc,ln:p.ln,lw:p.lw}));
+  const legd=S.pts.slice(0,-1).map(p=>({box:p.box,boff:p.boff,poff:p.poff,ov:p.ov?{...p.ov,crs:''}:undefined,alt:p.alt,bx:p.bx,bsc:p.bsc,ln:p.ln,lw:p.lw}));
   S.pts.reverse();S.pts.forEach(p=>{if(p.tf==='PZ')p.tf='LZ';else if(p.tf==='LZ')p.tf='PZ'}); // chosen PZ/LZ swap ends too
-  S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined,lw:undefined};Object.assign(p,d)});
+  S.pts.forEach((p,j)=>{const d=j<n-1?legd[n-2-j]:{box:undefined,boff:undefined,poff:undefined,ov:undefined,alt:'',bx:undefined,bsc:undefined,ln:undefined,lw:undefined};Object.assign(p,d)});
   const f=S.pts[0],z=S.pts[n-1];if(kind(f.type)==='LZ'&&kind(z.type)==='PZ'){f.type='PZ'+f.type.slice(2);z.type='LZ'+z.type.slice(2);[f.lcol,z.lcol]=[z.lcol,f.lcol];const dc=[COL.PZ,COL.LZ].map(c=>c.toLowerCase());[f,z].forEach(p=>{if(p.lcol==null||dc.includes(String(p.lcol).toLowerCase()))delete p.lcol})}
 }
 function reverseRoute(){if(S.pts.length<2)return;revPts();if(S.alt&&S.alt.length>1){[S.pts,S.alt]=[S.alt,S.pts];revPts();[S.pts,S.alt]=[S.alt,S.pts]}draw()}
 function setLL(i,k,v){const x=parseCoord(v);if(x===null)return alert('รูปแบบพิกัดไม่ถูกต้อง');S.pts[i][k]=x;draw()}
-function resetBox(...ix){ix.forEach(k=>{const p=S.pts[k];if(p){delete p.boff;delete p.box}})}
+function resetBox(...ix){ix.forEach(k=>{const p=S.pts[k];if(p){delete p.boff;delete p.box;delete p.poff}})}
 function mv(i,d){if(i+d<0||i+d>=S.pts.length)return;resetBox(i-1,i,i+d-1,i+d);[S.pts[i],S.pts[i+d]]=[S.pts[i+d],S.pts[i]];draw()}
 function ins(i){const a=S.pts[i],b=S.pts[i+1];if(!b)return setMode('map');resetBox(i);
   S.pts.splice(i+1,0,{type:'CP',name:'',lat:+((a.lat+b.lat)/2).toFixed(6),lon:+((a.lon+b.lon)/2).toFixed(6),alt:a.alt});draw()}
