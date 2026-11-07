@@ -98,7 +98,7 @@ fieldset>*:not(legend){clear:both}
 .btns{display:grid;grid-template-columns:1fr 1fr;gap:2px}.btns button{padding:0 2px;margin:0;font-size:11px;color:var(--cy);line-height:18px}.btns .x{color:#ff6b6b}
 .ed{display:none;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px}.ed.on{display:grid}.ed input{width:100%;padding:4px}
 .pct{display:flex;align-items:center;gap:6px}.pct input[type=range]{flex:1;min-width:0}.pct input[type=number]{width:56px;flex:none;text-align:center}.pct .stp{flex:none;width:30px;padding:2px 0;margin:0;font-size:15px;line-height:22px}
-.mk{width:24px;height:24px;border-radius:50%;background:var(--au);border:2px solid #1b1d20;color:#1b1d20;font:bold 13px var(--mf);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0008}
+.mk{width:24px;height:24px;border-radius:50%;background:#000;border:2px solid #fff;color:#fff;font:bold 13px var(--mf);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0008}
 .pill{background:#1b1d20e6;color:var(--au);border:1px solid var(--au);border-radius:3px;font:bold 12px var(--mf);padding:1px 5px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
 #edp{display:none;position:fixed;top:12px;right:12px;width:270px;max-height:calc(100vh - 24px);overflow:auto;background:#fff;color:#222;border-radius:8px;box-shadow:0 4px 18px #0007;padding:10px 12px;z-index:1000;font-size:12px}
 #edp.lft{right:auto;left:calc(390px + 12px)}.edh{display:flex;justify-content:flex-end;gap:4px;margin:-4px -4px 2px}.edh button{background:#eee!important;color:#333!important;border:0;padding:2px 8px}
@@ -177,7 +177,7 @@ body{height:100dvh}
  <fieldset><legend>FLIGHT ROUTE Waypoint</legend>
   <div class="seg" id="rSeg"><button id="rMain" onclick="setRoute('main')">เส้นทางหลัก</button><button id="rSw" onclick="swapRoutes()" title="สลับเส้นทางหลัก ↔ สำรอง" style="flex:0 0 38px">⇄</button><button id="rAlt" onclick="setRoute('alt')">เส้นทางสำรอง</button><button id="rDel" onclick="delAlt()" title="ลบเส้นทางสำรอง" style="flex:0 0 38px">✕</button></div>
   <div class="sm" id="shHd" style="margin:-2px 0 4px"></div>
-  <div class="row" style="margin:0 0 8px;gap:12px"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setSh('main',this.checked)" style="width:auto"> SHOW เส้นทางหลัก</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setSh('alt',this.checked)" style="width:auto"> SHOW เส้นทางสำรอง</label></div>
+  <div class="row" style="margin:0 0 8px;gap:8px 12px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="shMain" onchange="setSh('main',this.checked)" style="width:auto"> SHOW เส้นทางหลัก (เส้นทึบ)</label><label style="flex:none"><input type="checkbox" id="shAlt" onchange="setSh('alt',this.checked)" style="width:auto"> SHOW เส้นทางสำรอง (เส้นประ)</label></div>
   <div class="row" style="margin:-4px 0 8px;gap:8px 12px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="shLbl" checked onchange="setSh('lbl',this.checked)" style="width:auto"> SHOW PZ CPs LZ</label><label style="flex:none"><input type="checkbox" id="shBox" checked onchange="setSh('box',this.checked)" style="width:auto"> SHOW DOG LEGs</label><label style="flex:none" id="shPillL"><input type="checkbox" id="shPill" checked onchange="setSh('pill',this.checked)" style="width:auto"> SHOW ° / NM</label></div>
   <div class="seg"><button id="mOn" onclick="setMode('map')">On MAP</button><button id="mLL" onclick="setMode('ll')">LAT/LONG</button></div>
   <div id="llBox" style="display:none"><div class="sm">Lat / Lon แบบ องศา ลิปดา.ทศนิยม (ไม่ต้องใส่ N/E) เช่น 16 07.01 / 103 46.45</div>
@@ -397,7 +397,7 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
   // legs first so markers sit on top
   L_.forEach((l,i)=>{const a=S.pts[i],b=S.pts[i+1];
     const dash=(a.ln||(isAlt?S.ui.lineAlt||'dash':S.ui.line||'solid'))==='dash'?'10 8':null; // per-leg style wins; else alternate = dashed, primary = global setting (solid by default)
-    L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],anf?{color:'#F2B43C',weight:a.lw||S.ui.lw||4*(S.ui.lwc||1),opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
+    L.polyline([[LA(a),LO(a)],[LA(b),LO(b)]],anf?{color:'#000',weight:a.lw||S.ui.lw||4*(S.ui.lwc||1),opacity:.95,dashArray:dash}:{color:'#000',weight:a.lw||S.ui.lw||3*(S.ui.lwc||1),dashArray:dash}).addTo(g);
     if(anf&&shw('pill'))L.marker([(LA(a)+LA(b))/2,(LO(a)+LO(b))/2],{interactive:false,zIndexOffset:2000,icon:L.divIcon({className:'',iconSize:null,html:`<span class="pill">${esc(l.crsTxt)}° · ${+l.nm.toFixed(1)} NM</span>`})}).addTo(g);
     if(!shw('box'))return;
     // box position is stored as an offset from the leg midpoint, so it follows the leg when points move/insert
@@ -423,8 +423,8 @@ function render(g,ro,other){const L_=legs(),n=S.pts.length,anf=S.ui.style==='anf
     bx.on('click',()=>editBox(i,a.box));
   });
   S.pts.forEach((p,i)=>{ if(i>0){cn+=L_[i-1].nm;cm+=L_[i-1].min}
-    if(p._la!=null){L.polyline([[p.lat,p.lon],[p._la,p._lo]],{color:anf?'#F2B43C':'#000',weight:1.5,dashArray:'4 4',interactive:false}).addTo(g);
-      L.circleMarker([p._la,p._lo],{radius:3,color:anf?'#F2B43C':'#000',weight:1.5,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(g)}
+    if(p._la!=null){L.polyline([[p.lat,p.lon],[p._la,p._lo]],{color:'#000',weight:1.5,dashArray:'4 4',interactive:false}).addTo(g);
+      L.circleMarker([p._la,p._lo],{radius:3,color:'#000',weight:1.5,fillColor:'#fff',fillOpacity:1,interactive:false}).addTo(g)}
     const first=i===0,last=i===n-1,ms=p.msc||S.ui.msc||1,sz=(anf?24:26)*ms;const skipMk=noEnds&&(first||last);
     const mk=skipMk?null:L.marker([p.lat,p.lon],{draggable:!ro,interactive:!ro,zIndexOffset:500,icon:L.divIcon({className:'',html:`<div style="transform:scale(${ms});transform-origin:0 0">${anf?`<div class="mk">${i+1}</div>`:shape(p.type)}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]})}).addTo(g);
     if(!ro&&mk){mk.bindTooltip(esc(p.type+' '+p.name),{direction:'top',offset:[0,-12]});
